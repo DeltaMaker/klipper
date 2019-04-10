@@ -6,6 +6,26 @@ All dates in this document are approximate.
 
 # Changes
 
+20190404: The Python host software packages were updated. Users will
+need to rerun the ~/klipper/scripts/install-octopi.sh script (or
+otherwise upgrade the python dependencies if not using a standard
+OctoPi installation).
+
+20190404: The i2c_bus and spi_bus parameters (in various config
+sections) now take a bus name instead of a number.
+
+20190404: The sx1509 config parameters have changed. The 'address'
+parameter is now 'i2c_address' and it must be specified as a decimal
+number. Where 0x3E was previously used, specify 62.
+
+20190328: The min_speed value in [temperature_fan] config
+will now be respected and the fan will always run at this
+speed or higher in PID mode.
+
+20190322: The default value for "driver_HEND" in [tmc2660] config
+sections was changed from 6 to 3. The "driver_VSENSE" field was
+removed (it is now automatically calculated from run_current).
+
 20190310: The [controller_fan] config section now always takes a name
 (such as [controller_fan my_controller_fan]).
 

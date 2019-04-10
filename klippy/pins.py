@@ -1,59 +1,12 @@
 # Pin name to pin number definitions
 #
-# Copyright (C) 2016-2018  Kevin O'Connor <kevin@koconnor.net>
+# Copyright (C) 2016-2019  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import re
 
 class error(Exception):
     pass
-
-
-######################################################################
-# Hardware pin names
-######################################################################
-
-def port_pins(port_count, bit_count=8):
-    pins = {}
-    for port in range(port_count):
-        portchr = chr(65 + port)
-        if portchr == 'I':
-            continue
-        for portbit in range(bit_count):
-            pins['P%c%d' % (portchr, portbit)] = port * bit_count + portbit
-    return pins
-
-def named_pins(fmt, port_count, bit_count=32):
-    return { fmt % (port, portbit) : port * bit_count + portbit
-             for port in range(port_count)
-             for portbit in range(bit_count) }
-
-def lpc_pins():
-    return { 'P%d.%d' % (port, pin) : port * 32 + pin
-             for port in range(5) for pin in range(32) }
-
-def beaglebone_pins():
-    gpios = named_pins("gpio%d_%d", 4)
-    gpios.update({"AIN%d" % i: i+4*32 for i in range(8)})
-    return gpios
-
-MCU_PINS = {
-    "atmega168": port_pins(5),
-    "atmega328": port_pins(5), "atmega328p": port_pins(5),
-    "atmega644p": port_pins(4), "atmega1284p": port_pins(4),
-    "at90usb1286": port_pins(6), "at90usb646": port_pins(6),
-    "atmega32u4": port_pins(6),
-    "atmega1280": port_pins(12), "atmega2560": port_pins(12),
-    "sam3x8e": port_pins(4, 32), "sam3x8c": port_pins(2, 32),
-    "sam4s8c": port_pins(3, 32), "sam4e8e" : port_pins(5, 32),
-    "samd21g18a": port_pins(2, 32), "samd21e18a": port_pins(2, 32),
-    "samd51g19a": port_pins(2, 32), "samd51j19a": port_pins(3, 32),
-    "samd51n19a": port_pins(3, 32), "samd51p20a": port_pins(4, 32),
-    "stm32f103": port_pins(5, 16),
-    "lpc176x": lpc_pins(),
-    "pru": beaglebone_pins(),
-    "linux": {"analog%d" % i: i for i in range(8)}, # XXX
-}
 
 
 ######################################################################
@@ -118,14 +71,16 @@ Arduino_from_mcu = {
     "sam3x8e": (Arduino_Due, Arduino_Due_analog),
 }
 
-def update_map_arduino(pins, mcu):
+def get_aliases_arduino(mcu):
     if mcu not in Arduino_from_mcu:
         raise error("Arduino aliases not supported on mcu '%s'" % (mcu,))
     dpins, apins = Arduino_from_mcu[mcu]
+    aliases = {}
     for i in range(len(dpins)):
-        pins['ar' + str(i)] = pins[dpins[i]]
+        aliases['ar' + str(i)] = dpins[i]
     for i in range(len(apins)):
-        pins['analog%d' % (i,)] = pins[apins[i]]
+        aliases['analog%d' % (i,)] = apins[i]
+    return aliases
 
 
 ######################################################################
@@ -161,11 +116,10 @@ beagleboneblack_mappings = {
     'P9_38': 'AIN3', 'P9_39': 'AIN0', 'P9_40': 'AIN1',
 }
 
-def update_map_beaglebone(pins, mcu):
+def get_aliases_beaglebone(mcu):
     if mcu != 'pru':
         raise error("Beaglebone aliases not supported on mcu '%s'" % (mcu,))
-    for pin, gpio in beagleboneblack_mappings.items():
-        pins[pin] = pins[gpio]
+    return beagleboneblack_mappings
 
 
 ######################################################################
@@ -175,29 +129,30 @@ def update_map_beaglebone(pins, mcu):
 re_pin = re.compile(r'(?P<prefix>[ _]pin=)(?P<name>[^ ]*)')
 
 class PinResolver:
-    def __init__(self, mcu_type, validate_aliases=True):
+    def __init__(self, mcu_type, reserved_pins, validate_aliases=True):
         self.mcu_type = mcu_type
+        self.reserved_pins = reserved_pins
         self.validate_aliases = validate_aliases
-        self.pins = dict(MCU_PINS.get(mcu_type, {}))
+        self.aliases = {}
         self.active_pins = {}
     def update_aliases(self, mapping_name):
-        self.pins = dict(MCU_PINS.get(self.mcu_type, {}))
         if mapping_name == 'arduino':
-            update_map_arduino(self.pins, self.mcu_type)
+            self.aliases = get_aliases_arduino(self.mcu_type)
         elif mapping_name == 'beaglebone':
-            update_map_beaglebone(self.pins, self.mcu_type)
+            self.aliases = get_aliases_beaglebone(self.mcu_type)
         else:
             raise error("Unknown pin alias mapping '%s'" % (mapping_name,))
     def update_command(self, cmd):
         def pin_fixup(m):
             name = m.group('name')
-            if name not in self.pins:
-                raise error("Unable to translate pin name: %s" % (cmd,))
-            pin_id = self.pins[name]
+            pin_id = self.aliases.get(name, name)
             if (name != self.active_pins.setdefault(pin_id, name)
                 and self.validate_aliases):
                 raise error("pin %s is an alias for %s" % (
                     name, self.active_pins[pin_id]))
+            if pin_id in self.reserved_pins:
+                raise error("pin %s is reserved for %s" % (
+                    name, self.reserved_pins[pin_id]))
             return m.group('prefix') + str(pin_id)
         return re_pin.sub(pin_fixup, cmd)
 
@@ -211,6 +166,7 @@ class PrinterPins:
     def __init__(self):
         self.chips = {}
         self.active_pins = {}
+        self.reserved_pins = {}
     def lookup_pin(self, pin_desc, can_invert=False, can_pullup=False,
                    share_type=None):
         desc = pin_desc.strip()
@@ -232,7 +188,7 @@ class PrinterPins:
         if [c for c in '^~!: ' if c in pin]:
             format = ""
             if can_pullup:
-                format += "[^] "
+                format += "[^~] "
             if can_invert:
                 format += "[!] "
             raise error("Invalid pin description '%s'\n"
@@ -259,6 +215,14 @@ class PrinterPins:
     def reset_pin_sharing(self, pin_params):
         share_name = "%s:%s" % (pin_params['chip_name'], pin_params['pin'])
         del self.active_pins[share_name]
+    def reserve_pin(self, chip_name, pin, reserve_name):
+        chip_reserve = self.reserved_pins.setdefault(chip_name, {})
+        if pin in chip_reserve and chip_reserve[pin] != reserve_name:
+            raise error("Pin %s:%s reserved for %s - can't reserve for %s" % (
+                chip_name, pin, chip_reserve[pin], reserve_name))
+        chip_reserve[pin] = reserve_name
+    def get_reserved_pins(self, chip_name):
+        return self.reserved_pins.get(chip_name, {})
     def register_chip(self, chip_name, chip):
         chip_name = chip_name.strip()
         if chip_name in self.chips:
