@@ -1,0 +1,142 @@
+accessControl:
+  salt: gUocy8QZC6c8DceUtYDlmAadW5siL03P
+api:
+  key: 9E5BA439FF304E1E98E9CC97121F5B7F
+appearance:
+  color: red
+  components:
+    order:
+      sidebar:
+      - connection
+      - state
+      - plugin_automaticshutdown
+      - files
+  name: DeltaMaker Klipper Dev
+controls:
+- children:
+  - commands:
+    - G28
+    - G29 A
+    name: Auto Bed Mapping
+    type: commands
+  - commands:
+    - G28
+    - G1 Z30 F2000
+    - G1 Z0 F500
+    name: Move Nozzle to Bed
+    type: commands
+  - commands:
+    - G29 R0.05
+    - G91
+    - G1 Z1
+    - G1 Z-1
+    - G90
+    name: Too Low
+    type: commands
+  - commands:
+    - G29 R-0.05
+    - G91
+    - G1 Z1
+    - G1 Z-1
+    - G90
+    name: Too High
+    type: commands
+  - commands:
+    - G28
+    - M500
+    name: Save & Home
+    type: commands
+  layout: vertical
+  name: Bed Leveling & Nozzle Height
+  type: section
+- children:
+  - commands:
+    - G1 Z5 F3000
+    - G29 M5
+    - G1 Z0 F3000
+    name: Next Calibration Point
+    type: commands
+  - commands:
+    - G29 L0.05
+    - G91
+    - G1 Z1
+    - G1 Z-1
+    - G90
+    name: Point Too Low
+    type: commands
+  - commands:
+    - G29 L-0.05
+    - G91
+    - G1 Z1
+    - G1 Z-1
+    - G90
+    name: Point Too High
+    type: commands
+  - command: M500
+    name: SAVE
+    type: command
+  - command: M501
+    name: Discard Changes
+    type: command
+  layout: vertical
+  name: Touch Probe Calibration (advanced)
+  type: section
+feature:
+  keyboardControl: false
+  modelSizeDetection: false
+  sdSupport: false
+plugins:
+  _disabled:
+  - softwareupdate
+  - announcements
+  announcements:
+    _config_version: 1
+    channels:
+      _blog:
+        read_until: 1551867600
+      _important:
+        read_until: 1521111600
+      _octopi:
+        read_until: 1549966200
+      _plugins:
+        read_until: 1551657600
+      _releases:
+        read_until: 1544449800
+  cura:
+    cura_engine: /usr/local/bin/cura_engine
+  discovery:
+    publicPort: 80
+    upnpUuid: 32cd1ed6-b6a5-4a92-a4ce-172678ca1d8b
+  softwareupdate:
+    _config_version: 6
+  tracking:
+    enabled: false
+printerProfiles:
+  default: _default
+serial:
+  additionalPorts:
+  - /tmp/printer
+  autoconnect: true
+  baudrate: 250000
+  disconnectOnErrors: false
+  port: /tmp/printer
+server:
+  commands:
+    serverRestartCommand: sudo service octoprint restart
+    systemRestartCommand: sudo shutdown -r now
+    systemShutdownCommand: sudo shutdown -h now
+  firstRun: false
+  onlineCheck:
+    enabled: true
+  pluginBlacklist:
+    enabled: true
+  secretKey: yATztxv9FKCl6Rf6bT8gHpdF5umPouH2
+  seenWizards:
+    corewizard: 3
+    cura: null
+    tracking: null
+webcam:
+  ffmpeg: /usr/bin/avconv
+  snapshot: http://127.0.0.1:8080/?action=snapshot
+  stream: /webcam/?action=stream
+  watermark: false
