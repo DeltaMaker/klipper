@@ -397,7 +397,7 @@ class BedMeshCalibrate:
         self.gcode.respond_info(
             "Invalid syntax '%s'" % (params['#original']))
 
-    cmd_BED_MESH_MAGIC_help = "Bed Mesh Magic"
+    cmd_BED_MESH_MAGIC_help = "Bed Mesh Magic Probe Height Correction"
     def create_correction(self, correction_name, probed_profile, manual_profile):
             probed_z_table = probed_profile['points']
             manual_z_table = manual_profile['points']
@@ -408,6 +408,13 @@ class BedMeshCalibrate:
                     for j in range(len(manual_z_table[i])):
                          self.probed_z_table[i][j] = probed_z_table[i][j] - manual_z_table[i][j] 
                 self.save_profile(correction_name)
+   def rebuild_mesh(self):
+        mesh = ZMesh(self.probe_params)
+        try:
+            mesh.build_mesh(self.probed_z_table)
+        except BedMeshError as e:
+            raise self.gcode.error(e.message)
+        self.bedmesh.set_mesh(mesh)
     def apply_correction(self, correction_profile, probed_profile):
         if correction_profile is None:
             raise self.gcode.error(
@@ -420,7 +427,10 @@ class BedMeshCalibrate:
             else:
                 for i in range(len(correction_z_table)):
                     for j in range(len(correction_z_table[i])):
-                        self.probed_z_table[i][j] = probed_z_table[i][j] - correction_z_table[i][j]
+                        self.probed_z_table[i][j] = probed_z_table[i][j] + correction_z_table[i][j]
+                self.rebuild_mesh(self)
+                self.save_profile("default")
+ 
     def cmd_BED_MESH_MAGIC(self, params):
         # BED_MESH_MAGIC CREATE=correction PROBED=probed_profile MANUAL=manual_profile
         #   or
@@ -446,7 +456,9 @@ class BedMeshCalibrate:
                 raise self.gcode.error(
                     "bed_mesh: Unknown profile [%s]" % manual_name)
             self.create_correction(self, create_name, probed_profile, manual_profile)
-        self.gcode.respond_info("Mesh Bed Magic Complete")
+        else
+            self.gcode.respond_info(
+                "Invalid syntax '%s'" % (params['#original']))
 
     cmd_BED_MESH_MAP_help = "Probe the bed and serialize output"
     def cmd_BED_MESH_MAP(self, params):
