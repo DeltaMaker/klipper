@@ -399,16 +399,18 @@ class BedMeshCalibrate:
 
     cmd_BED_MESH_MAGIC_help = "Bed Mesh Magic Probe Height Correction"
     def create_correction(self, correction_name, probed_profile, manual_profile):
-            probed_z_table = probed_profile['points']
-            manual_z_table = manual_profile['points']
-            if len(manual_z_table) != len(probed_z_table):
-                self.gcode.respond_info("bed_mesh: z_table size mismatch, [%d]" % len(manual_z_table))
-            else:
-                for i in range(len(manual_z_table)):
-                    for j in range(len(manual_z_table[i])):
-                         self.probed_z_table[i][j] = probed_z_table[i][j] - manual_z_table[i][j] 
-                self.save_profile(correction_name)
-   def rebuild_mesh(self):
+        probed_z_table = probed_profile['points']
+        manual_z_table = manual_profile['points']
+        if len(manual_z_table) != len(probed_z_table):
+            self.gcode.respond_info(
+                "bed_mesh: z_table size mismatch, [%d]" % len(manual_z_table))
+        else:
+            for i in range(len(manual_z_table)):
+                for j in range(len(manual_z_table[i])):
+                     self.probed_z_table[i][j] = manual_z_table[i][j] - probed_z_table[i][j]
+            self.probe_params = manual_profile['probe_params']
+            self.save_profile(correction_name)
+    def rebuild_mesh(self):
         mesh = ZMesh(self.probe_params)
         try:
             mesh.build_mesh(self.probed_z_table)
@@ -416,26 +418,23 @@ class BedMeshCalibrate:
             raise self.gcode.error(e.message)
         self.bedmesh.set_mesh(mesh)
     def apply_correction(self, correction_profile, probed_profile):
-        if correction_profile is None:
-            raise self.gcode.error(
-               "bed_mesh: Unknown profile [%s]" % apply_correction_name)
+        correction_z_table = correction_profile['points']
+        probed_z_table = probed_profile['points']
+        if len(correction_z_table) != len(probed_z_table):
+            self.gcode.respond_info("bed_mesh: z_table size mismatch, [%d]" % len(correction_z_table))
         else:
-            correction_z_table = correction_profile['points']
-            probed_z_table = probed_profile['points']
-            if len(correction_z_table) != len(probed_z_table):
-                self.gcode.respond_info("bed_mesh: z_table size mismatch, [%d]" % len(correction_z_table))
-            else:
-                for i in range(len(correction_z_table)):
-                    for j in range(len(correction_z_table[i])):
-                        self.probed_z_table[i][j] = probed_z_table[i][j] + correction_z_table[i][j]
-                self.rebuild_mesh(self)
-                self.save_profile("default")
+            for i in range(len(correction_z_table)):
+                for j in range(len(correction_z_table[i])):
+                    self.probed_z_table[i][j] = probed_z_table[i][j] + correction_z_table[i][j]
+            self.probe_params = correction_profile['probe_params']
+            self.rebuild_mesh(self)
+            self.save_profile("default")
  
     def cmd_BED_MESH_MAGIC(self, params):
         # BED_MESH_MAGIC CREATE=correction PROBED=probed_profile MANUAL=manual_profile
         #   or
         # BED_MESH_MAGIC APPLY=correction PROBED=probed_profile
-        #self.gcode.respond_info(str(params))
+        self.gcode.respond_info(str(params))
         create_name = self.gcode.get_str('CREATE', params, None)
         apply_name  = self.gcode.get_str('APPLY',  params, None)
         manual_name = self.gcode.get_str('MANUAL', params, None)
@@ -448,7 +447,7 @@ class BedMeshCalibrate:
             correction_profile = self.profiles.get(apply_name, None)
             if correction_profile is None:
                 raise self.gcode.error(
-                    "bed_mesh: Unknown profile [%s]" % correction_profile)
+                    "bed_mesh: Unknown profile [%s]" % apply_name)
             self.apply_correction(self, correction_profile, probed_profile)
         elif create_name is not None:
             manual_profile = self.profiles.get(manual_name, None)
@@ -456,7 +455,7 @@ class BedMeshCalibrate:
                 raise self.gcode.error(
                     "bed_mesh: Unknown profile [%s]" % manual_name)
             self.create_correction(self, create_name, probed_profile, manual_profile)
-        else
+        else:
             self.gcode.respond_info(
                 "Invalid syntax '%s'" % (params['#original']))
 

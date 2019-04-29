@@ -36,14 +36,14 @@ controls:
   - command: START_MANUAL_CALIBRATE
     name: Start Calibration
     type: command
-  - command: ACCEPT_POINT
-    name: Next Calibration Point
-    type: command
   - command: POINT_TOO_LOW
     name: Point Too Low
     type: command
   - command: POINT_TOO_HIGH
     name: Point Too High
+    type: command
+  - command: ACCEPT_POINT
+    name: Next Calibration Point
     type: command
   - command: SAVE_MANUAL_CALIBRATE
     name: SAVE
@@ -78,8 +78,7 @@ plugins:
       _releases:
         read_until: 1544449800
   bedlevelvisualizer:
-    command: '@BEDLEVELVISUALIZER
-      BED_MESH_OUTPUT'
+    command: '@BEDLEVELVISUALIZER BED_MESH_OUTPUT'
     save_mesh: false
   cura:
     cura_engine: /usr/local/bin/cura_engine
