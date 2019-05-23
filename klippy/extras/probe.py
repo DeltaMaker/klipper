@@ -250,7 +250,6 @@ class ProbePointsHelper:
                                                default='average')
         # Internal probing state
         self.results = []
-        self.z_offsets = []
         self.busy = self.manual_probe = False
         self.gcode = self.toolhead = None
     def get_lift_speed(self):
@@ -280,10 +279,8 @@ class ProbePointsHelper:
         # Move to next XY probe point
         x, y = self.probe_points[len(self.results)]
         curpos = self.toolhead.get_position()
-        #curpos[0] = x
-        #curpos[1] = y
-        curpos[0] = x - self.probe_offsets[0]
-        curpos[1] = y - self.probe_offsets[1]
+        curpos[0] = x
+        curpos[1] = y
         curpos[2] = self.horizontal_move_z
         try:
             self.toolhead.move(curpos, self.speed)
@@ -326,7 +323,6 @@ class ProbePointsHelper:
                                 positions[0][1],
                                 median]
         self.results.append(calculated_value)
-        self.gcode.respond_info(str(calculated_value))
     def start_probe(self, params):
         # Lookup objects
         self.toolhead = self.printer.lookup_object('toolhead')
