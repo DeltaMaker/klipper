@@ -108,6 +108,8 @@ plugins:
         z: 0
       speed_xy: '4000'
       speed_z: '4000'
+  navbartemp:
+    displayRaspiTemp: false
   softwareupdate:
     _config_version: 6
   themeify:
