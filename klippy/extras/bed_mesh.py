@@ -209,6 +209,9 @@ class BedMeshCalibrate:
         self.gcode.register_command(
             'BED_MESH_PROFILE', self.cmd_BED_MESH_PROFILE,
             desc=self.cmd_BED_MESH_PROFILE_help)
+        self.gcode.register_command(
+            'BED_MESH_OFFSET', self.cmd_BED_MESH_OFFSET,
+            desc=self.cmd_BED_MESH_OFFSET_help)
     def _generate_points(self, config):
         self.radius = config.getfloat('bed_radius', None, above=0.)
         if self.radius is not None:
@@ -394,6 +397,89 @@ class BedMeshCalibrate:
                 return
         self.gcode.respond_info(
             "Invalid syntax '%s'" % (params['#original']))
+
+    cmd_BED_MESH_OFFSET_help = "Bed Mesh Offset for Nozzle Height and Probe Location Bias Correction"
+    def create_correction(self, correction_name, probed_profile, manual_profile):
+        probed_z_table = probed_profile['points']
+        manual_z_table = manual_profile['points']
+        if len(manual_z_table) != len(probed_z_table):
+            self.gcode.respond_info(
+                "bed_mesh: z_table size mismatch, [%d]" % len(manual_z_table))
+        else:
+            for i in range(len(manual_z_table)):
+                for j in range(len(manual_z_table[i])):
+                     self.probed_z_table[i][j] = manual_z_table[i][j] - probed_z_table[i][j]
+            self.probe_params = manual_profile['probe_params']
+            self.save_profile(correction_name)
+    def rebuild_mesh(self):
+        mesh = ZMesh(self.probe_params)
+        try:
+            mesh.build_mesh(self.probed_z_table)
+        except BedMeshError as e:
+            raise self.gcode.error(e.message)
+        self.bedmesh.set_mesh(mesh)
+    def apply_correction(self, correction_profile, probed_profile):
+        correction_z_table = correction_profile['points']
+        probed_z_table = probed_profile['points']
+        if len(correction_z_table) != len(probed_z_table):
+            self.gcode.respond_info("bed_mesh: z_table size mismatch, [%d]" % len(correction_z_table))
+        else:
+            for i in range(len(correction_z_table)):
+                for j in range(len(correction_z_table[i])):
+                    self.probed_z_table[i][j] = probed_z_table[i][j] + correction_z_table[i][j]
+            self.probe_params = correction_profile['probe_params']
+            self.rebuild_mesh()
+            self.save_profile("default")
+    def adjust_profile_mesh(self, probed_profile, z_adjust):
+        self.gcode.respond_info("bed_mesh: z_adjust = %f" % z_adjust)
+        probed_z_table = probed_profile['points']
+        #self.gcode.respond_info(str(probed_z_table))
+        # apply offset to each item in table
+        self.probed_z_table = [[item + z_adjust for item in row] for row in probed_z_table]
+        self.rebuild_mesh()
+        self.save_profile("default")
+    def adjust_default_mesh(self, z_adjust):
+        #self.gcode.respond_info("bed_mesh: z_adjust = %f" % z_adjust)
+        # apply offset to each item in table
+        self.probed_z_table = [[item + z_adjust for item in row] for row in self.probed_z_table]
+        self.rebuild_mesh()
+    def cmd_BED_MESH_OFFSET(self, params):
+        # BED_MESH_OFFSET CREATE=correction PROBED=probed_profile MANUAL=manual_profile
+        #   or
+        # BED_MESH_OFFSET APPLY=correction PROBED=probed_profile
+        # self.gcode.respond_info(str(params))
+        z_adjust = self.gcode.get_float('Z_ADJUST', params, 0.0)
+        create_name = self.gcode.get_str('CREATE', params, None)
+        apply_name  = self.gcode.get_str('APPLY',  params, None)
+        manual_name = self.gcode.get_str('MANUAL', params, None)
+        probed_name = self.gcode.get_str('PROBED', params, None)
+        probed_profile = self.profiles.get(probed_name, None)
+        if abs(z_adjust) > 0.001:
+            curpos = self.bedmesh.get_position()
+            self.adjust_default_mesh(z_adjust)
+            if self.gcode.get_int('MOVE', params, 0):
+               self.bedmesh.move(curpos, speed=5)
+        elif self.gcode.get_int('SAVE', params, 0):
+            self.save_profile("default")
+        elif probed_profile is None:
+            raise self.gcode.error(
+                "bed_mesh: Unknown profile [%s]" % probed_name)
+        elif apply_name is not None:
+            correction_profile = self.profiles.get(apply_name, None)
+            if correction_profile is None:
+                raise self.gcode.error(
+                    "bed_mesh: Unknown profile [%s]" % apply_name)
+            self.apply_correction(self, correction_profile, probed_profile)
+        elif create_name is not None:
+            manual_profile = self.profiles.get(manual_name, None)
+            if manual_profile is None:
+                raise self.gcode.error(
+                    "bed_mesh: Unknown profile [%s]" % manual_name)
+            self.create_correction(self, create_name, probed_profile, manual_profile)
+        else:
+            self.gcode.respond_info(
+                "bed_mesh: Invalid syntax '%s'" % (params['#original']))
+
     cmd_BED_MESH_MAP_help = "Probe the bed and serialize output"
     def cmd_BED_MESH_MAP(self, params):
         self.build_map = True
