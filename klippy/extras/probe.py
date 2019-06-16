@@ -21,6 +21,11 @@ class PrinterProbe:
         self.x_offset = config.getfloat('x_offset', 0.)
         self.y_offset = config.getfloat('y_offset', 0.)
         self.z_offset = config.getfloat('z_offset')
+        if config.has_section('probe_calibrate'):
+            section = config.getsection('probe_calibrate')
+            self.z_offsets = [float(z.strip()) for z in section.get('z_offsets').split(',')]
+        else:
+	        self.z_offsets = []
         self.probe_calibrate_z = 0.
         # Infer Z position to move to during a probe
         if config.has_section('stepper_z'):
@@ -148,6 +153,9 @@ class PrinterProbe:
         res = self.mcu_probe.query_endstop(print_time)
         self.gcode.respond_info(
             "probe: %s" % (["open", "TRIGGERED"][not not res],))
+        self.gcode.respond_info(
+            "z_offsets: length = %d, [1] = %.6f\n" % (len(self.z_offsets), self.z_offsets[1]))
+
     cmd_PROBE_ACCURACY_help = "Probe Z-height accuracy at current XY position"
     def cmd_PROBE_ACCURACY(self, params):
         speed = self.gcode.get_float(
@@ -199,19 +207,23 @@ class PrinterProbe:
     cmd_PROBE_CALIBRATE_help = "Calibrate the probe's z_offset"
     def cmd_PROBE_CALIBRATE(self, params):
         manual_probe.verify_no_manual_probe(self.printer)
+        self.probe_calibrate_z = self.run_calibrate()
+        # Start manual probe
+        manual_probe.ManualProbeHelper(self.printer, params,
+                                       self.probe_calibrate_finalize)
+    def run_calibrate(self):
         # Perform initial probe
         curpos = self.run_probe(params)
         # Move away from the bed
-        self.probe_calibrate_z = curpos[2]
+        probe_z = curpos[2]
         curpos[2] += 5.
         self._move(curpos, self.speed)
         # Move the nozzle over the probe point
         curpos[0] += self.x_offset
         curpos[1] += self.y_offset
         self._move(curpos, self.speed)
-        # Start manual probe
-        manual_probe.ManualProbeHelper(self.printer, params,
-                                       self.probe_calibrate_finalize)
+        return probe_z
+
 
 # Endstop wrapper that enables probe specific features
 class ProbeEndstopWrapper:
@@ -269,6 +281,7 @@ class ProbePointsHelper:
         self.printer = config.get_printer()
         self.finalize_callback = finalize_callback
         self.probe_points = default_points
+        self.probe = None
         self.name = config.get_name()
         self.gcode = self.printer.lookup_object('gcode')
         # Read config settings
@@ -286,6 +299,7 @@ class ProbePointsHelper:
         # Internal probing state
         self.lift_speed = self.speed
         self.probe_offsets = (0., 0., 0.)
+        self.probe_z = 0.
         self.results = []
     def minimum_points(self,n):
         if len(self.probe_points) < n:
@@ -350,6 +364,25 @@ class ProbePointsHelper:
             return
         self.results.append(kin_pos)
         self._manual_probe_start()
+    #
+    def start_probe_calibrate(self, params):
+        manual_probe.verify_no_manual_probe(self.printer)
+        self.probe = self.printer.lookup_object('probe', None)
+        self.results = []
+        if self.probe is not None:
+            self._probe_calibrate_start()
+    def _probe_calibrate_start(self):
+        done = self._move_next()
+        if not done:
+            self.probe_z = self.probe.run_calibrate()
+            manual_probe.ManualProbeHelper(self.printer, {},
+                                           self._probe_calibrate_finalize)
+        return done
+    def _probe_calibrate_finalize(self, kin_pos):
+        if kin_pos is not None:
+            z_offset = self.probe_z - kin_pos[2]
+            self.results.append(z_offset)
+            self._probe_calibrate_start()
 
 def load_config(config):
     return PrinterProbe(config, ProbeEndstopWrapper(config))
