@@ -196,6 +196,14 @@ class BedMeshCalibrate:
         self.probe_helper = probe.ProbePointsHelper(
             config, self.probe_finalize, points)
         self.probe_helper.minimum_points(3)
+        self.probe_calibrate_helper = probe.ProbePointsHelper(
+            config, self.probe_calibrate_finalize, points)
+        if config.has_section('probe_calibrate'):
+            section = config.getsection('probe_calibrate')
+            self.z_offsets = [float(z.strip()) for z in section.get('z_offsets').split(',')]
+        else:
+            self.z_offsets = []
+
         # setup persistent storage
         self.profiles = {}
         self._load_storage(config)
@@ -209,6 +217,12 @@ class BedMeshCalibrate:
         self.gcode.register_command(
             'BED_MESH_PROFILE', self.cmd_BED_MESH_PROFILE,
             desc=self.cmd_BED_MESH_PROFILE_help)
+        self.gcode.register_command(
+            'BED_MESH_OFFSET', self.cmd_BED_MESH_OFFSET,
+            desc=self.cmd_BED_MESH_OFFSET_help)
+        self.gcode.register_command(
+            'BED_MESH_PROBE_CALIBRATE', self.cmd_BED_MESH_PROBE_CALIBRATE,
+            desc=self.cmd_BED_MESH_PROBE_CALIBRATE_help)
     def _generate_points(self, config):
         self.radius = config.getfloat('bed_radius', None, above=0.)
         if self.radius is not None:
@@ -394,6 +408,72 @@ class BedMeshCalibrate:
                 return
         self.gcode.respond_info(
             "Invalid syntax '%s'" % (params['#original']))
+
+    cmd_BED_MESH_OFFSET_help = "Bed Mesh Offset Z Adjustment"
+    def rebuild_mesh(self):
+        mesh = ZMesh(self.probe_params)
+        try:
+            mesh.build_mesh(self.probed_z_table)
+        except BedMeshError as e:
+            raise self.gcode.error(e.message)
+        self.bedmesh.set_mesh(mesh)
+    def adjust_default_mesh(self, z_adjust, params):
+        pos = self.bedmesh.get_position()
+        self.gcode.respond_info("z_adjust = %.3f, (%.2f,%.2f,%.2f)" % (z_adjust, pos[0], pos[1], pos[2]))
+        # apply offset to each item in table
+        self.probed_z_table = [[item + z_adjust for item in row] for row in self.probed_z_table]
+        self.rebuild_mesh()
+        if self.gcode.get_int('MOVE', params, 0):
+            self.bedmesh.move(pos, speed=5)
+
+    def cmd_BED_MESH_OFFSET(self, params):
+        # BED_MESH_OFFSET Z_ADJUST=x.x [MOVE=1]
+        z_adjust = self.gcode.get_float('Z_ADJUST', params, 0.0)
+        if abs(z_adjust) > 0.001:
+            self.adjust_default_mesh(z_adjust, params)
+        elif self.gcode.get_int('SAVE', params, 0):
+            self.save_probe_calibrate_config()
+            self.save_profile("default")
+        else:
+            self.gcode.respond_info(
+                "bed_mesh: Invalid syntax '%s'" % (params['#original']))
+
+    cmd_BED_MESH_PROBE_CALIBRATE_help = "Calibrate the probe's z_offset over the entire mesh"
+    def cmd_BED_MESH_PROBE_CALIBRATE(self, params):
+        self.probe_calibrate_helper.set_z_offsets(self.z_offsets)
+        self.probe_calibrate_helper.start_probe_calibrate(params)
+    def probe_calibrate_finalize(self, probe_offset, z_offsets):
+        # Save probe z_offset at each probed position
+        self.z_offsets = z_offsets
+        section, z_values = self.save_probe_calibrate_config()
+        self.gcode.respond_info(
+            "[%s]\nz_offsets: %s\n"
+            "The SAVE_CONFIG command will update the printer config file\n"
+            "with the above and restart the printer." % (section, z_values))
+        #data = list(map(float, z_values.strip().split(', ')))
+        #self.gcode.respond_info(str(data))
+    def save_probe_calibrate_config(self):
+        configfile = self.printer.lookup_object('configfile')
+        section = 'probe_calibrate'
+        configfile.remove_section(section)
+        z_values = ""
+        for p in self.z_offsets:
+            z_values += "%.3f, " % p
+        z_values = z_values[:-2]
+        configfile.set(section, 'z_offsets', z_values)
+        return section, z_values
+    def probe_location_bias(self, positions):
+        if len(positions) != len(self.z_offsets):
+            self.gcode.respond_info("bed_mesh: z_offsets size mismatch, [%d]" % len(self.z_offsets))
+        else:
+            z_values = ""
+            for i in range(len(positions)):
+                #positions[i][2] -= self.z_offsets[i]
+                old_z = positions[i][2]
+                positions[i][2] = old_z - self.z_offsets[i]
+                z_values += "[%.3f] %.3f, " % (old_z, positions[i][2])
+            self.gcode.respond_info("bed_mesh: probe_location_bias: %s\n" % z_values[:-2])
+
     cmd_BED_MESH_MAP_help = "Probe the bed and serialize output"
     def cmd_BED_MESH_MAP(self, params):
         self.build_map = True
@@ -416,9 +496,13 @@ class BedMeshCalibrate:
         else:
             print_func("bed_mesh: bed has not been probed")
     def probe_finalize(self, offsets, positions):
+        #self.gcode.respond_info("before: %s\n" % str(positions))
+        self.probe_location_bias(positions)
+        #self.gcode.respond_info("after: %s\n" % str(positions))
         self.probe_params['x_offset'] = offsets[0]
         self.probe_params['y_offset'] = offsets[1]
         z_offset = offsets[2]
+        #z_offset = 0.
         x_cnt = self.probe_params['x_count']
         y_cnt = self.probe_params['y_count']
 
@@ -610,6 +694,7 @@ class ZMesh:
             if move_z is not None:
                 msg += "Search Height: %d\n" % (move_z)
             msg += "Mesh Average: %.2f\n" % (self.avg_z)
+            msg += "Mesh Offset: %.2f\n" % (self.mesh_offset)
             rng = self.get_z_range()
             msg += "Mesh Range: min=%.4f max=%.4f\n" % (rng[0], rng[1])
             msg += "Interpolation Algorithm: %s\n" \
