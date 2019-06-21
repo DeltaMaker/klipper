@@ -21,11 +21,6 @@ class PrinterProbe:
         self.x_offset = config.getfloat('x_offset', 0.)
         self.y_offset = config.getfloat('y_offset', 0.)
         self.z_offset = config.getfloat('z_offset')
-        if config.has_section('probe_calibrate'):
-            section = config.getsection('probe_calibrate')
-            self.z_offsets = [float(z.strip()) for z in section.get('z_offsets').split(',')]
-        else:
-	        self.z_offsets = []
         self.probe_calibrate_z = 0.
         # Infer Z position to move to during a probe
         if config.has_section('stepper_z'):
@@ -125,8 +120,6 @@ class PrinterProbe:
         res = self.mcu_probe.query_endstop_wait()
         self.gcode.respond_info(
             "probe: %s" % (["open", "TRIGGERED"][not not res],))
-        self.gcode.respond_info(
-            "z_offsets: length = %d, [1] = %.6f\n" % (len(self.z_offsets), self.z_offsets[1]))
 
     cmd_PROBE_ACCURACY_help = "Probe Z-height accuracy at current XY position"
     def cmd_PROBE_ACCURACY(self, params):
@@ -188,12 +181,13 @@ class PrinterProbe:
         # Start manual probe
         manual_probe.ManualProbeHelper(self.printer, params,
                                        self.probe_calibrate_finalize)
-    def run_calibrate(self):
+    def run_calibrate(self, prev_offset=0.):
         # Perform initial probe
         curpos = self.run_probe()
         # Move away from the bed
         probe_z = curpos[2]
         curpos[2] += 5.
+        curpos[2] -= prev_offset
         self._move(curpos, self.speed)
         # Move the nozzle over the probe point
         curpos[0] += self.x_offset
@@ -259,6 +253,7 @@ class ProbePointsHelper:
         self.printer = config.get_printer()
         self.finalize_callback = finalize_callback
         self.probe_points = default_points
+        self.previous_z_offsets = []
         self.probe = None
         self.name = config.get_name()
         self.gcode = self.printer.lookup_object('gcode')
@@ -277,7 +272,7 @@ class ProbePointsHelper:
         # Internal probing state
         self.lift_speed = self.speed
         self.probe_offsets = (0., 0., 0.)
-        self.probe_z = 0.
+        self.probe_calibrate_z = 0.
         self.results = []
     def minimum_points(self,n):
         if len(self.probe_points) < n:
@@ -340,7 +335,15 @@ class ProbePointsHelper:
             return
         self.results.append(kin_pos)
         self._manual_probe_start()
-    #
+
+    #support for bed_mesh probe calibrate
+    def set_z_offsets(self, z_offsets):
+        self.previous_z_offsets = z_offsets
+        self.gcode.respond_info("previous_z_offsets = %s\n" % str(self.previous_z_offsets))
+    def prev_z_offset(self):
+        if self.previous_z_offsets and len(self.previous_z_offsets) >= len(self.results):
+            return self.previous_z_offsets[len(self.results)]
+        return 0.
     def start_probe_calibrate(self, params):
         manual_probe.verify_no_manual_probe(self.printer)
         self.probe = self.printer.lookup_object('probe', None)
@@ -350,13 +353,13 @@ class ProbePointsHelper:
     def _probe_calibrate_start(self):
         done = self._move_next()
         if not done:
-            self.probe_z = self.probe.run_calibrate()
+            self.probe_calibrate_z = self.probe.run_calibrate(self.prev_z_offset())
             manual_probe.ManualProbeHelper(self.printer, {},
                                            self._probe_calibrate_finalize)
         return done
     def _probe_calibrate_finalize(self, kin_pos):
         if kin_pos is not None:
-            z_offset = self.probe_z - kin_pos[2]
+            z_offset = self.probe_calibrate_z - kin_pos[2]
             self.results.append(z_offset)
             self._probe_calibrate_start()
 

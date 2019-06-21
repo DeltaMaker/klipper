@@ -36,12 +36,21 @@ controls:
   - command: START_MANUAL_CALIBRATE
     name: Start Calibration
     type: command
-  - command: POINT_TOO_LOW
-    name: Point Too Low
-    type: command
-  - command: POINT_TOO_HIGH
-    name: Point Too High
-    type: command
+  - children:
+    - command: POINT_TOO_LOW
+      name: Point Too Low
+      type: command
+    - command: TESTZ Z=+
+      confirm: null
+      name: +
+      type: command
+    layout: horizontal
+  - children:
+    - command: POINT_TOO_HIGH
+      name: Point Too High
+    - command: TESTZ Z=-
+      name: '-'
+    layout: horizontal
   - command: ACCEPT_POINT
     name: Next Calibration Point
     type: command
