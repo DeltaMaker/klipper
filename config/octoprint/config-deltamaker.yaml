@@ -11,7 +11,7 @@ appearance:
       - state
       - plugin_automaticshutdown
       - files
-  name: DeltaMaker Azteeg Dev
+  name: DeltaMaker Dev
 controls:
 - children:
   - command: AUTO_BED_MAPPING
@@ -41,15 +41,16 @@ controls:
       name: Point Too Low
       type: command
     - command: TESTZ Z=+
-      confirm: null
       name: +
       type: command
     layout: horizontal
   - children:
     - command: POINT_TOO_HIGH
       name: Point Too High
+      type: command
     - command: TESTZ Z=-
       name: '-'
+      type: command
     layout: horizontal
   - command: ACCEPT_POINT
     name: Next Calibration Point
