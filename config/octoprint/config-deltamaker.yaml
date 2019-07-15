@@ -3,7 +3,7 @@ accessControl:
 api:
   key: 9E5BA439FF304E1E98E9CC97121F5B7F
 appearance:
-  color: orange
+  color: blue
   components:
     order:
       sidebar:
@@ -11,7 +11,7 @@ appearance:
       - state
       - plugin_automaticshutdown
       - files
-  name: DeltaMaker Dev
+  name: DeltaMaker R2 Dev
 controls:
 - children:
   - command: AUTO_BED_MAPPING
@@ -47,10 +47,8 @@ controls:
   - children:
     - command: POINT_TOO_HIGH
       name: Point Too High
-      type: command
     - command: TESTZ Z=-
       name: '-'
-      type: command
     layout: horizontal
   - command: ACCEPT_POINT
     name: Next Calibration Point
