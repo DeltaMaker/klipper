@@ -3,7 +3,7 @@ accessControl:
 api:
   key: 9E5BA439FF304E1E98E9CC97121F5B7F
 appearance:
-  color: blue
+  color: red
   components:
     order:
       sidebar:
@@ -11,7 +11,7 @@ appearance:
       - state
       - plugin_automaticshutdown
       - files
-  name: DeltaMaker R2 Dev
+  name: DeltaMaker Klipper Dev
 controls:
 - children:
   - command: AUTO_BED_MAPPING
