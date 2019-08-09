@@ -11,7 +11,7 @@ appearance:
       - state
       - plugin_automaticshutdown
       - files
-  name: DeltaMaker R2 Dev
+  name: DeltaMaker Dev
 controls:
 - children:
   - command: AUTO_BED_MAPPING
@@ -33,9 +33,14 @@ controls:
   name: Bed Leveling & Nozzle Height
   type: section
 - children:
-  - command: START_MANUAL_CALIBRATE
-    name: Start Calibration
-    type: command
+  - children:
+    - command: START_PROBE_CALIBRATE
+      name: Move Nozzle to Bed
+    - command: START_MANUAL_CALIBRATE
+      confirm: null
+      name: Multi-Point Calibration
+      type: command
+    layout: horizontal
   - children:
     - command: POINT_TOO_LOW
       name: Point Too Low
@@ -47,11 +52,14 @@ controls:
   - children:
     - command: POINT_TOO_HIGH
       name: Point Too High
+      type: command
     - command: TESTZ Z=-
       name: '-'
+      type: command
     layout: horizontal
   - command: ACCEPT_POINT
-    name: Next Calibration Point
+    confirm: null
+    name: Accept Nozzle Height
     type: command
   - command: SAVE_MANUAL_CALIBRATE
     name: SAVE
@@ -182,6 +190,9 @@ temperature:
     name: UNLOAD
 webcam:
   ffmpeg: /usr/bin/avconv
+  flipH: true
+  flipV: true
   snapshot: http://127.0.0.1:8080/?action=snapshot
-  stream: ''
+  stream: /webcam/?action=stream
+  streamRatio: '4:3'
   watermark: false
