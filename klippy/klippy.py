@@ -202,7 +202,8 @@ class Printer:
     def send_event(self, event, *params):
         return [cb(*params) for cb in self.event_handlers.get(event, [])]
     def request_exit(self, result):
-        self.run_result = result
+        if self.run_result is None:
+            self.run_result = result
         self.reactor.end()
 
 
@@ -268,6 +269,9 @@ def main():
             "CPU: %s" % (util.get_cpu_info(),),
             "Python: %s" % (repr(sys.version),)])
         logging.info(versions)
+    elif not options.debugoutput:
+        logging.warning("No log file specified!"
+                        " Severe timing issues may result!")
 
     # Start Printer() class
     while 1:

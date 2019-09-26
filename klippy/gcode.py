@@ -31,6 +31,7 @@ class GCodeParser:
         self.input_log = collections.deque([], 50)
         # Command handling
         self.is_printer_ready = False
+        self.mutex = self.reactor.mutex()
         self.base_gcode_handlers = self.gcode_handlers = {}
         self.ready_gcode_handlers = {}
         self.mux_commands = {}
@@ -91,13 +92,17 @@ class GCodeParser:
                 "mux command %s %s %s already registered (%s)" % (
                     cmd, key, value, prev_values))
         prev_values[value] = func
-    def set_move_transform(self, transform):
-        if self.move_transform is not None:
+    def set_move_transform(self, transform, force=False):
+        if self.move_transform is not None and not force:
             raise self.printer.config_error(
                 "G-Code move transform already specified")
+        old_transform = self.move_transform
+        if old_transform is None:
+            old_transform = self.toolhead
         self.move_transform = transform
         self.move_with_transform = transform.move
         self.position_with_transform = transform.get_position
+        return old_transform
     def stats(self, eventtime):
         return False, "gcodein=%d" % (self.bytes_read,)
     def _action_emergency_stop(self, msg="action_emergency_stop"):
@@ -267,35 +272,15 @@ class GCodeParser:
                 return
         # Process commands
         self.is_processing_data = True
-        self.pending_commands = []
-        self._process_commands(pending_commands)
-        if self.pending_commands:
-            self._process_pending()
-        self.is_processing_data = False
-    def _process_pending(self):
-        pending_commands = self.pending_commands
         while pending_commands:
             self.pending_commands = []
-            self._process_commands(pending_commands)
+            with self.mutex:
+                self._process_commands(pending_commands)
             pending_commands = self.pending_commands
+        self.is_processing_data = False
         if self.fd_handle is None:
             self.fd_handle = self.reactor.register_fd(self.fd,
                                                       self._process_data)
-    def process_batch(self, commands):
-        if self.is_processing_data:
-            return False
-        self.is_processing_data = True
-        try:
-            self._process_commands(commands, need_ack=False)
-        except self.error as e:
-            if self.pending_commands:
-                self._process_pending()
-            self.is_processing_data = False
-            raise
-        if self.pending_commands:
-            self._process_pending()
-        self.is_processing_data = False
-        return True
     def run_script_from_command(self, script):
         prev_need_ack = self.need_ack
         try:
@@ -303,15 +288,10 @@ class GCodeParser:
         finally:
             self.need_ack = prev_need_ack
     def run_script(self, script):
-        commands = script.split('\n')
-        curtime = None
-        while 1:
-            res = self.process_batch(commands)
-            if res:
-                break
-            if curtime is None:
-                curtime = self.reactor.monotonic()
-            curtime = self.reactor.pause(curtime + 0.100)
+        with self.mutex:
+            self._process_commands(script.split('\n'), need_ack=False)
+    def get_mutex(self):
+        return self.mutex
     # Response handling
     def ack(self, msg=None):
         if not self.need_ack or self.is_fileinput:
@@ -670,7 +650,11 @@ class GCodeParser:
     cmd_M105_when_not_ready = True
     def cmd_M105(self, params):
         # Get Extruder Temperature
-        self.ack(self._get_temp(self.reactor.monotonic()))
+        msg = self._get_temp(self.reactor.monotonic())
+        if self.need_ack:
+            self.ack(msg)
+        else:
+            self.respond(msg)
     def cmd_M104(self, params):
         # Set Extruder Temperature
         self._set_temp(params)

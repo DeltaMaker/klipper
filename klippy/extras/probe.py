@@ -30,12 +30,16 @@ class PrinterProbe:
             pconfig = config.getsection('printer')
             self.z_position = pconfig.getfloat('minimum_z_position', 0.)
         # Multi-sample support (for improved accuracy)
-        self.samples = config.getint('samples', 1, minval=1)
-        self.sample_retract_dist = config.getfloat(
-            'sample_retract_dist', 2., above=0.)
+        self.sample_count = config.getint('samples', 1, minval=1)
+        self.sample_retract_dist = config.getfloat('sample_retract_dist', 2.,
+                                                   above=0.)
         atypes = {'median': 'median', 'average': 'average'}
         self.samples_result = config.getchoice('samples_result', atypes,
                                                'average')
+        self.samples_tolerance = config.getfloat('samples_tolerance', 0.100,
+                                                 minval=0.)
+        self.samples_retries = config.getint('samples_tolerance_retries', 0,
+                                             minval=0)
         # Register z_virtual_endstop pin
         self.printer.lookup_object('pins').register_chip('probe', self)
         # Register PROBE/QUERY_PROBE commands
@@ -75,7 +79,7 @@ class PrinterProbe:
         self.gcode.respond_info("probe at %.3f,%.3f is z=%.6f" % (
             pos[0], pos[1], pos[2]))
         self.gcode.reset_last_position()
-        return pos
+        return pos[:3]
     def _move(self, coord, speed):
         toolhead = self.printer.lookup_object('toolhead')
         curpos = toolhead.get_position()
@@ -96,58 +100,76 @@ class PrinterProbe:
             return z_sorted[middle]
         # even number of samples
         return self._calc_mean(z_sorted[middle-1:middle+1])
-    def run_probe(self):
+    def run_probe(self, params={}):
+        speed = self.gcode.get_float(
+            "PROBE_SPEED", params, self.speed, above=0.)
+        sample_count = self.gcode.get_int(
+            "SAMPLES", params, self.sample_count, minval=1)
+        sample_retract_dist = self.gcode.get_float(
+            "SAMPLE_RETRACT_DIST", params, self.sample_retract_dist, above=0.)
+        samples_tolerance = self.gcode.get_float(
+            "SAMPLES_TOLERANCE", params, self.samples_tolerance, minval=0.)
+        samples_retries = self.gcode.get_int(
+            "SAMPLES_TOLERANCE_RETRIES", params, self.samples_retries, minval=0)
+        samples_result = self.gcode.get_str(
+            "SAMPLES_RESULT", params, self.samples_result)
+        retries = 0
         positions = []
-        for i in range(self.samples):
-            pos = self._probe(self.speed)
+        while len(positions) < sample_count:
+            # Probe position
+            pos = self._probe(speed)
             positions.append(pos)
-            if i < self.samples - 1:
-                # retract
-                liftpos = [None, None, pos[2] + self.sample_retract_dist]
-                self._move(liftpos, self.speed)
-        if self.samples_result == 'median':
+            # Check samples tolerance
+            z_positions = [p[2] for p in positions]
+            if max(z_positions) - min(z_positions) > samples_tolerance:
+                if retries >= samples_retries:
+                    raise homing.CommandError(
+                        "Probe samples exceed samples_tolerance")
+                self.gcode.respond_info(
+                    "Probe samples exceed tolerance. Retrying...")
+                retries += 1
+                positions = []
+            # Retract
+            if len(positions) < sample_count:
+                liftpos = [None, None, pos[2] + sample_retract_dist]
+                self._move(liftpos, speed)
+        # Calculate and return result
+        if samples_result == 'median':
             return self._calc_median(positions)
         return self._calc_mean(positions)
     cmd_PROBE_help = "Probe Z-height at current XY position"
     def cmd_PROBE(self, params):
-        pos = self.run_probe()
+        pos = self.run_probe(params)
         self.gcode.respond_info("Result is z=%.6f" % (pos[2],))
     cmd_QUERY_PROBE_help = "Return the status of the z-probe"
     def cmd_QUERY_PROBE(self, params):
         toolhead = self.printer.lookup_object('toolhead')
         print_time = toolhead.get_last_move_time()
-        self.mcu_probe.query_endstop(print_time)
-        res = self.mcu_probe.query_endstop_wait()
+        res = self.mcu_probe.query_endstop(print_time)
         self.gcode.respond_info(
             "probe: %s" % (["open", "TRIGGERED"][not not res],))
     cmd_PROBE_ACCURACY_help = "Probe Z-height accuracy at current XY position"
     def cmd_PROBE_ACCURACY(self, params):
+        speed = self.gcode.get_float(
+            "PROBE_SPEED", params, self.speed, above=0.)
+        sample_count = self.gcode.get_int("SAMPLES", params, 10, minval=1)
+        sample_retract_dist = self.gcode.get_float(
+            "SAMPLE_RETRACT_DIST", params, self.sample_retract_dist, above=0.)
         toolhead = self.printer.lookup_object('toolhead')
         pos = toolhead.get_position()
-        number_of_reads = self.gcode.get_int('REPEAT', params, default=10,
-                                                       minval=4, maxval=50)
-        speed = self.gcode.get_int('SPEED', params, default=self.speed,
-                                            minval=1, maxval=30)
-        z_start_position = self.gcode.get_float(
-            'Z', params, default=10., minval=self.z_offset, maxval=70.)
-        x_start_position = self.gcode.get_float('X', params, default=pos[0])
-        y_start_position = self.gcode.get_float('Y', params, default=pos[1])
-        start_pos = [x_start_position, y_start_position, z_start_position]
-        self.gcode.respond_info("probe accuracy: at X:%.3f Y:%.3f Z:%.3f\n"
-                                "                "
-                                "and read %d times with speed of %d mm/s" % (
-                                x_start_position, y_start_position,
-                                z_start_position, number_of_reads, speed))
-        # Probe bed "number_of_reads" times
+        self.gcode.respond_info("PROBE_ACCURACY at X:%.3f Y:%.3f Z:%.3f"
+                                " (samples=%d retract=%.3f speed=%.1f\n"
+                                % (pos[0], pos[1], pos[2],
+                                   sample_count, sample_retract_dist, speed))
+        # Probe bed sample_count times
         positions = []
-        for i in range(number_of_reads):
-            # Move Z to start reading position
-            self._move(start_pos, speed)
-            # Probe
+        while len(positions) < sample_count:
+            # Probe position
             pos = self._probe(speed)
             positions.append(pos)
-        # Move Z to start reading position
-        self._move(start_pos, speed)
+            # Retract
+            liftpos = [None, None, pos[2] + sample_retract_dist]
+            self._move(liftpos, speed)
         # Calculate maximum, minimum and average values
         max_value = max([p[2] for p in positions])
         min_value = min([p[2] for p in positions])
@@ -155,9 +177,9 @@ class PrinterProbe:
         median = self._calc_median(positions)[2]
         # calculate the standard deviation
         deviation_sum = 0
-        for i in range(number_of_reads):
-            deviation_sum += pow(positions[i][2] - avg_value, 2)
-        sigma = (deviation_sum / number_of_reads) ** 0.5
+        for i in range(len(positions)):
+            deviation_sum += pow(positions[i][2] - avg_value, 2.)
+        sigma = (deviation_sum / len(positions)) ** 0.5
         # Show information
         self.gcode.respond_info(
             "probe accuracy results: maximum %.6f, minimum %.6f, "
@@ -177,7 +199,7 @@ class PrinterProbe:
     def cmd_PROBE_CALIBRATE(self, params):
         manual_probe.verify_no_manual_probe(self.printer)
         # Perform initial probe
-        curpos = self.run_probe()
+        curpos = self.run_probe(params)
         # Move away from the bed
         self.probe_calibrate_z = curpos[2]
         curpos[2] += 5.
@@ -215,7 +237,6 @@ class ProbeEndstopWrapper:
         self.home_start = self.mcu_endstop.home_start
         self.home_wait = self.mcu_endstop.home_wait
         self.query_endstop = self.mcu_endstop.query_endstop
-        self.query_endstop_wait = self.mcu_endstop.query_endstop_wait
         self.TimeoutError = self.mcu_endstop.TimeoutError
     def _build_config(self):
         kin = self.printer.lookup_object('toolhead').get_kinematics()
@@ -285,8 +306,10 @@ class ProbePointsHelper:
         if len(self.results) >= len(self.probe_points):
             self.gcode.reset_last_position()
             toolhead.get_last_move_time()
-            self.finalize_callback(self.probe_offsets, self.results)
-            return True
+            res = self.finalize_callback(self.probe_offsets, self.results)
+            if res != "retry":
+                return True
+            self.results = []
         # Move to next XY probe point
         curpos[:2] = self.probe_points[len(self.results)]
         toolhead.move(curpos, self.speed)
@@ -314,7 +337,7 @@ class ProbePointsHelper:
             done = self._move_next()
             if done:
                 break
-            pos = probe.run_probe()
+            pos = probe.run_probe(params)
             self.results.append(pos)
     def _manual_probe_start(self):
         done = self._move_next()
