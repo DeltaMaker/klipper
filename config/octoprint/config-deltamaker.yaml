@@ -34,16 +34,12 @@ controls:
   type: section
 - children:
   - children:
-    - command: START_PROBE_CALIBRATE
-      name: Move Nozzle to Bed
-    - command: START_MANUAL_CALIBRATE
-      confirm: null
-      name: Multi-Point Calibration
-      type: command
+    - command: CALIBRATE_PROBE_OFFSET
+      name: Calibrate Probe Offset
     layout: horizontal
   - children:
     - command: POINT_TOO_LOW
-      name: Point Too Low
+      name: Offset Too Low
       type: command
     - command: TESTZ Z=+
       name: +
@@ -51,21 +47,17 @@ controls:
     layout: horizontal
   - children:
     - command: POINT_TOO_HIGH
-      name: Point Too High
+      name: Offset Too High
       type: command
     - command: TESTZ Z=-
       name: '-'
       type: command
     layout: horizontal
-  - command: ACCEPT_POINT
-    confirm: null
-    name: Accept Nozzle Height
-    type: command
   - command: SAVE_MANUAL_CALIBRATE
-    name: SAVE
+    name: Save Probe Calibration
     type: command
   - command: ABORT_CALIBRATE
-    name: Discard Changes
+    name: Keep Previous Calibration
     type: command
   layout: vertical
   name: Touch Probe Calibration (advanced)
