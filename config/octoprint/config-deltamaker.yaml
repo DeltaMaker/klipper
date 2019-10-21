@@ -3,7 +3,7 @@ accessControl:
 api:
   key: 9E5BA439FF304E1E98E9CC97121F5B7F
 appearance:
-  color: red
+  color: orange
   components:
     order:
       sidebar:
@@ -11,7 +11,7 @@ appearance:
       - state
       - plugin_automaticshutdown
       - files
-  name: DeltaMaker Klipper Dev
+  name: DeltaMaker Azteeg Dev
 controls:
 - children:
   - command: AUTO_BED_MAPPING
@@ -41,6 +41,7 @@ controls:
       name: Point Too Low
       type: command
     - command: TESTZ Z=+
+      confirm: null
       name: +
       type: command
     layout: horizontal
@@ -92,6 +93,7 @@ plugins:
     cura_engine: /usr/local/bin/cura_engine
   discovery:
     publicPort: 80
+    upnpUuid: b700c5a1-650f-4b14-8c63-7db3311ffb83
   klipper:
     _config_version: 2
     macros:
