@@ -3,7 +3,7 @@ accessControl:
 api:
   key: 9E5BA439FF304E1E98E9CC97121F5B7F
 appearance:
-  color: blue
+  color: orange
   components:
     order:
       sidebar:
@@ -11,7 +11,7 @@ appearance:
       - state
       - plugin_automaticshutdown
       - files
-  name: DeltaMaker Dev
+  name: DeltaMaker Azteeg Dev
 controls:
 - children:
   - command: AUTO_BED_MAPPING
@@ -33,31 +33,32 @@ controls:
   name: Bed Leveling & Nozzle Height
   type: section
 - children:
-  - children:
-    - command: CALIBRATE_PROBE_OFFSET
-      name: Calibrate Probe Offset
-    layout: horizontal
+  - command: START_MANUAL_CALIBRATE
+    name: Start Calibration
+    type: command
   - children:
     - command: POINT_TOO_LOW
-      name: Offset Too Low
+      name: Point Too Low
       type: command
     - command: TESTZ Z=+
+      confirm: null
       name: +
       type: command
     layout: horizontal
   - children:
     - command: POINT_TOO_HIGH
-      name: Offset Too High
-      type: command
+      name: Point Too High
     - command: TESTZ Z=-
       name: '-'
-      type: command
     layout: horizontal
+  - command: ACCEPT_POINT
+    name: Next Calibration Point
+    type: command
   - command: SAVE_MANUAL_CALIBRATE
-    name: Save Probe Calibration
+    name: SAVE
     type: command
   - command: ABORT_CALIBRATE
-    name: Keep Previous Calibration
+    name: Discard Changes
     type: command
   layout: vertical
   name: Touch Probe Calibration (advanced)
@@ -66,8 +67,6 @@ feature:
   keyboardControl: false
   modelSizeDetection: false
   sdSupport: false
-folder:
-  timelapse_tmp: /home/pi/.octoprint/tlapse/tmp
 plugins:
   _disabled:
   - softwareupdate
@@ -94,6 +93,7 @@ plugins:
     cura_engine: /usr/local/bin/cura_engine
   discovery:
     publicPort: 80
+    upnpUuid: b700c5a1-650f-4b14-8c63-7db3311ffb83
   klipper:
     _config_version: 2
     macros:
@@ -151,14 +151,11 @@ plugins:
 printerProfiles:
   default: _default
 serial:
-  abortHeatupOnCancel: false
   additionalPorts:
   - /tmp/printer
   autoconnect: true
   baudrate: 250000
   disconnectOnErrors: false
-  ignoreErrorsFromFirmware: true
-  logPositionOnCancel: true
   port: /tmp/printer
 server:
   commands:
@@ -185,19 +182,8 @@ temperature:
   - bed: 0
     extruder: 100
     name: UNLOAD
-  - bed: 95
-    extruder: 250
-    name: DM-PETG
 webcam:
   ffmpeg: /usr/bin/avconv
   snapshot: http://127.0.0.1:8080/?action=snapshot
-  stream: /webcam/?action=stream
-  streamRatio: '4:3'
-  timelapse:
-    fps: 25
-    options:
-      minDelay: 5.0
-      retractionZHop: 0.75
-    postRoll: 5
-    type: zchange
+  stream: ''
   watermark: false
