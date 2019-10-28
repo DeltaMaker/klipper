@@ -17,7 +17,8 @@ class GCodeOffset:
             self.gcode.respond_info("Unable to parse gcode_offset in %s" % (self.name))
 
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
-        self.gcode.register_command("SAVE_GCODE_OFFSET", self.cmd_SAVE_GCODE_OFFSET)
+        self.gcode.register_command("SAVE_GCODE_OFFSET", self.cmd_SAVE_GCODE_OFFSET,
+            desc=self.cmd_SAVE_GCODE_OFFSET_help)
 
     def handle_ready(self):
         self.gcode.respond_info("gcode_offset: X=%.3f Y=%.3f Z=%.3f" % tuple(self.gcode_offset))
