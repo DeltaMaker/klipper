@@ -6,6 +6,51 @@ All dates in this document are approximate.
 
 # Changes
 
+20191218: The display config section no longer supports "lcd_type:
+st7567".  Use the "uc1701" display type instead - set "lcd_type:
+uc1701" and change the "rs_pin: some_pin" to "rst_pin: some_pin".  It
+may also be necessary to add a "contrast: 60" config setting.
+
+20191210: The builtin T0, T1, T2, ... commands have been removed.  The
+extruder activate_gcode and deactivate_gcode config options have been
+removed.  If these commands (and scripts) are needed then define
+individual [gcode_macro T0] style macros that call the
+ACTIVATE_EXTRUDER command.  See the config/sample-idex.cfg and
+sample-multi-extruder.cfg files for examples.
+
+20191210: Support for the M206 command has been removed.  Replace with
+calls to SET_GCODE_OFFSET.  If support for M206 is needed, add a
+[gcode_macro M206] config section that calls SET_GCODE_OFFSET.  (For
+example "SET_GCODE_OFFSET Z=-{params.Z}".)
+
+20191202: Support for the undocumented "S" parameter of the "G4"
+command has been removed.  Replace any occurrences of S with the
+standard "P" parameter (the delay specified in milliseconds).
+
+20191126: The USB names have changed on micro-controllers with native
+USB support.  They now use a unique chip id by default (where
+available).  If an "mcu" config section uses a "serial" setting that
+starts with "/dev/serial/by-id/" then it may be necessary to update
+the config.  Run "ls /dev/serial/by-id/*" in an ssh terminal to
+determine the new id.
+
+20191121: The pressure_advance_lookahead_time parameter has been
+removed.  See example.cfg for alternate configuration settings.
+
+20191112: The tmc stepper driver virtual enable capability is now
+automatically enabled if the stepper does not have a dedicated stepper
+enable pin.  Remove references to tmcXXXX:virtual_enable from the
+config.  The ability to control multiple pins in the stepper
+enable_pin config has been removed.  If multiple pins are needed then
+use a multi_pin config section.
+
+20191107: The primary extruder config section must be specified as
+"extruder" and may no longer be specified as "extruder0". Gcode
+command templates that query the extruder status are now accessed via
+"{printer.extruder}".
+
+20191021: Klipper v0.8.0 released
+
 20191003: The move_to_previous option in [safe_z_homing] now defaults
 to False.  (It was effectively False prior to 20190918.)
 

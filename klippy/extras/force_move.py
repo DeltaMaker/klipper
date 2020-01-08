@@ -6,7 +6,10 @@
 import math, logging
 import chelper
 
-BUZZ_VELOCITY = 4.
+BUZZ_DISTANCE = 1.
+BUZZ_VELOCITY = BUZZ_DISTANCE / .250
+BUZZ_RADIANS_DISTANCE = math.radians(1.)
+BUZZ_RADIANS_VELOCITY = BUZZ_RADIANS_DISTANCE / .250
 STALL_TIME = 0.100
 
 # Calculate a move's accel_t, cruise_t, and cruise_v
@@ -53,9 +56,11 @@ class ForceMove:
     def force_enable(self, stepper):
         toolhead = self.printer.lookup_object('toolhead')
         print_time = toolhead.get_last_move_time()
-        was_enable = stepper.is_motor_enabled()
+        stepper_enable = self.printer.lookup_object('stepper_enable')
+        enable = stepper_enable.lookup_enable(stepper.get_name())
+        was_enable = enable.is_motor_enabled()
         if not was_enable:
-            stepper.motor_enable(print_time, 1)
+            enable.motor_enable(print_time)
             toolhead.dwell(STALL_TIME)
         return was_enable
     def restore_enable(self, stepper, was_enable):
@@ -63,20 +68,24 @@ class ForceMove:
             toolhead = self.printer.lookup_object('toolhead')
             toolhead.dwell(STALL_TIME)
             print_time = toolhead.get_last_move_time()
-            stepper.motor_enable(print_time, 0)
+            stepper_enable = self.printer.lookup_object('stepper_enable')
+            enable = stepper_enable.lookup_enable(stepper.get_name())
+            enable.motor_disable(print_time)
             toolhead.dwell(STALL_TIME)
     def manual_move(self, stepper, dist, speed, accel=0.):
         toolhead = self.printer.lookup_object('toolhead')
-        print_time = toolhead.get_last_move_time()
+        toolhead.flush_step_generation()
         prev_sk = stepper.set_stepper_kinematics(self.stepper_kinematics)
         stepper.set_position((0., 0., 0.))
         axis_r, accel_t, cruise_t, cruise_v = calc_move_time(dist, speed, accel)
+        print_time = toolhead.get_last_move_time()
         self.trapq_append(self.trapq, print_time, accel_t, cruise_t, accel_t,
                           0., 0., 0., axis_r, 0., 0., 0., cruise_v, accel)
-        print_time += accel_t + cruise_t + accel_t
+        print_time = print_time + accel_t + cruise_t + accel_t
         stepper.generate_steps(print_time)
-        self.trapq_free_moves(self.trapq, print_time)
+        self.trapq_free_moves(self.trapq, print_time + 99999.9)
         stepper.set_stepper_kinematics(prev_sk)
+        toolhead.note_kinematic_activity(print_time)
         toolhead.dwell(accel_t + cruise_t + accel_t)
     def _lookup_stepper(self, params):
         name = self.gcode.get_str('STEPPER', params)
@@ -89,10 +98,13 @@ class ForceMove:
         logging.info("Stepper buzz %s", stepper.get_name())
         was_enable = self.force_enable(stepper)
         toolhead = self.printer.lookup_object('toolhead')
+        dist, speed = BUZZ_DISTANCE, BUZZ_VELOCITY
+        if stepper.units_in_radians():
+            dist, speed = BUZZ_RADIANS_DISTANCE, BUZZ_RADIANS_VELOCITY
         for i in range(10):
-            self.manual_move(stepper, 1., BUZZ_VELOCITY)
+            self.manual_move(stepper, dist, speed)
             toolhead.dwell(.050)
-            self.manual_move(stepper, -1., BUZZ_VELOCITY)
+            self.manual_move(stepper, -dist, speed)
             toolhead.dwell(.450)
         self.restore_enable(stepper, was_enable)
     cmd_FORCE_MOVE_help = "Manually move a stepper; invalidates kinematics"

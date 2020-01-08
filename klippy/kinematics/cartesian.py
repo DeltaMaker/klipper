@@ -10,6 +10,8 @@ class CartKinematics:
     def __init__(self, toolhead, config):
         self.printer = config.get_printer()
         # Setup axis rails
+        self.dual_carriage_axis = None
+        self.dual_carriage_rails = []
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in 'xyz']
         for rail, axis in zip(self.rails, 'xyz'):
@@ -17,6 +19,8 @@ class CartKinematics:
         for s in self.get_steppers():
             s.set_trapq(toolhead.get_trapq())
             toolhead.register_step_generator(s.generate_steps)
+        self.printer.register_event_handler("stepper_enable:motor_off",
+                                            self._motor_off)
         # Setup boundary checks
         max_velocity, max_accel = toolhead.get_max_velocity()
         self.max_z_velocity = config.getfloat(
@@ -31,8 +35,6 @@ class CartKinematics:
         self.rails[2].set_max_jerk(
             min(max_halt_velocity, self.max_z_velocity), max_accel)
         # Check for dual carriage support
-        self.dual_carriage_axis = None
-        self.dual_carriage_rails = []
         if config.has_section('dual_carriage'):
             dc_config = config.getsection('dual_carriage')
             dc_axis = dc_config.getchoice('axis', {'x': 'x', 'y': 'y'})
@@ -50,9 +52,13 @@ class CartKinematics:
     def get_steppers(self, flags=""):
         if flags == "Z":
             return self.rails[2].get_steppers()
-        return [s for rail in self.rails for s in rail.get_steppers()]
-    def calc_position(self):
-        return [rail.get_commanded_position() for rail in self.rails]
+        rails = self.rails
+        if self.dual_carriage_axis is not None:
+            dca = self.dual_carriage_axis
+            rails = rails[:dca] + self.dual_carriage_rails + rails[dca+1:]
+        return [s for rail in rails for s in rail.get_steppers()]
+    def calc_tag_position(self):
+        return [rail.get_tag_position() for rail in self.rails]
     def set_position(self, newpos, homing_axes):
         for i, rail in enumerate(self.rails):
             rail.set_position(newpos)
@@ -84,12 +90,8 @@ class CartKinematics:
                 self._activate_carriage(altc)
             else:
                 self._home_axis(homing_state, axis, self.rails[axis])
-    def motor_off(self, print_time):
+    def _motor_off(self, print_time):
         self.limits = [(1.0, -1.0)] * 3
-        for rail in self.rails:
-            rail.motor_enable(print_time, 0)
-        for rail in self.dual_carriage_rails:
-            rail.motor_enable(print_time, 0)
     def _check_endstops(self, move):
         end_pos = move.end_pos
         for i in (0, 1, 2):
@@ -114,24 +116,23 @@ class CartKinematics:
         z_ratio = move.move_d / abs(move.axes_d[2])
         move.limit_speed(
             self.max_z_velocity * z_ratio, self.max_z_accel * z_ratio)
-    def get_status(self):
-        return {'homed_axes': "".join([a
-                    for a, (l, h) in zip("XYZ", self.limits) if l <= h])
-        }
+    def get_status(self, eventtime):
+        axes = [a for a, (l, h) in zip("xyz", self.limits) if l <= h]
+        return { 'homed_axes': "".join(axes) }
     # Dual carriage support
     def _activate_carriage(self, carriage):
         toolhead = self.printer.lookup_object('toolhead')
-        toolhead.get_last_move_time()
+        toolhead.flush_step_generation()
         dc_rail = self.dual_carriage_rails[carriage]
         dc_axis = self.dual_carriage_axis
         self.rails[dc_axis].set_trapq(None)
         dc_rail.set_trapq(toolhead.get_trapq())
         self.rails[dc_axis] = dc_rail
-        extruder_pos = toolhead.get_position()[3]
-        toolhead.set_position(self.calc_position() + [extruder_pos])
+        pos = toolhead.get_position()
+        pos[dc_axis] = dc_rail.get_commanded_position()
+        toolhead.set_position(pos)
         if self.limits[dc_axis][0] <= self.limits[dc_axis][1]:
             self.limits[dc_axis] = dc_rail.get_range()
-        self.need_motor_enable = True
     cmd_SET_DUAL_CARRIAGE_help = "Set which carriage is active"
     def cmd_SET_DUAL_CARRIAGE(self, params):
         gcode = self.printer.lookup_object('gcode')

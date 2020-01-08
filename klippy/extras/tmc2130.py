@@ -123,11 +123,13 @@ class TMCCurrentHelper:
     def _calc_current(self, run_current, hold_current):
         vsense = False
         irun = self._calc_current_bits(run_current, vsense)
-        ihold = self._calc_current_bits(hold_current, vsense)
+        ihold = self._calc_current_bits(min(hold_current, run_current),
+                                        vsense)
         if irun < 16 and ihold < 16:
             vsense = True
             irun = self._calc_current_bits(run_current, vsense)
-            ihold = self._calc_current_bits(hold_current, vsense)
+            ihold = self._calc_current_bits(min(hold_current, run_current),
+                                            vsense)
         return vsense, irun, ihold
     def _calc_current_from_field(self, field_name):
         bits = self.fields.get_field(field_name)
@@ -147,7 +149,7 @@ class TMCCurrentHelper:
             hold_current = self._calc_current_from_field("IHOLD")
         if 'CURRENT' in params:
             run_current = gcode.get_float(
-                'CURRENT', params, minval=hold_current, maxval=MAX_CURRENT)
+                'CURRENT', params, minval=0., maxval=MAX_CURRENT)
         else:
             run_current = self._calc_current_from_field("IRUN")
         if 'HOLDCURRENT' not in params and 'CURRENT' not in params:
@@ -192,7 +194,7 @@ class MCU_TMC_SPI:
         minclock = 0
         if print_time is not None:
             minclock = self.spi.get_mcu().print_time_to_clock(print_time)
-        reg = Registers[reg_name]
+        reg = self.name_to_reg[reg_name]
         data = [(reg | 0x80) & 0xff, (val >> 24) & 0xff, (val >> 16) & 0xff,
                 (val >> 8) & 0xff, val & 0xff]
         with self.mutex:

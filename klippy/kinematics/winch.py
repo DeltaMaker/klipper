@@ -31,9 +31,9 @@ class WinchKinematics:
         self.set_position([0., 0., 0.], ())
     def get_steppers(self, flags=""):
         return list(self.steppers)
-    def calc_position(self):
+    def calc_tag_position(self):
         # Use only first three steppers to calculate cartesian position
-        spos = [s.get_commanded_position() for s in self.steppers[:3]]
+        spos = [s.get_tag_position() for s in self.steppers[:3]]
         return mathutil.trilateration(self.anchors[:3], [sp*sp for sp in spos])
     def set_position(self, newpos, homing_axes):
         for s in self.steppers:
@@ -42,15 +42,12 @@ class WinchKinematics:
         # XXX - homing not implemented
         homing_state.set_axes([0, 1, 2])
         homing_state.set_homed_position([0., 0., 0.])
-    def motor_off(self, print_time):
-        for s in self.steppers:
-            s.motor_enable(print_time, 0)
     def check_move(self, move):
         # XXX - boundary checks and speed limits not implemented
         pass
-    def get_status(self):
+    def get_status(self, eventtime):
         # XXX - homed_checks and rail limits not implemented
-        return {'homed_axes': 'XYZ'}
+        return {'homed_axes': 'xyz'}
 
 def load_kinematics(toolhead, config):
     return WinchKinematics(toolhead, config)
