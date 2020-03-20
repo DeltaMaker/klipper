@@ -8,7 +8,7 @@ import logging
 
 BACKGROUND_PRIORITY_CLOCK = 0x7fffffff00000000
 
-HD44780_DELAY = .000037
+HD44780_DELAY = .000040
 
 class HD44780:
     def __init__(self, config):
@@ -102,6 +102,8 @@ class HD44780:
             self.write_text(x, y, char)
             return 1
         return 0
+    def write_graphics(self, x, y, pixel_row, pixel_col):
+        pass
     def clear(self):
         spaces = ' ' * 40
         self.text_framebuffers[0][:] = spaces
@@ -187,11 +189,11 @@ HD44780_chars = [
 TextGlyphs = {
     'right_arrow': '\x7e',
     'extruder': '\x00',
-    'bed': '\x01',
+    'bed': '\x01', 'bed_heat1': '\x01', 'bed_heat2': '\x01',
     'feedrate': '\x02',
     'clock': '\x03',
     'degrees': '\x04',
     'usb': '\x05',
     'sd': '\x06',
-    'fan': '\x07',
+    'fan': '\x07', 'fan1': '\x07', 'fan2': '\x07',
 }
