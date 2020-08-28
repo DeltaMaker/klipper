@@ -136,8 +136,7 @@ class DeltaKinematics:
         if end_z > self.limit_z:
             limit_xy2 = min(limit_xy2, (self.max_z - end_z)**2)
         #hexagonal build area
-        if not inside_hexagon(end_pos) or end_z > self.max_z or end_z < self.min_z:
-        #if end_xy2 > limit_xy2 or end_z > self.max_z or end_z < self.min_z:
+        if not inside_hexagon(end_pos) or end_z > self.max_z or end_z < self.min_z:    
             # Move out of range - verify not a homing move
             if (end_pos[:2] != self.home_position[:2]
                 or end_z < self.min_z or end_z > self.home_position[2]):
