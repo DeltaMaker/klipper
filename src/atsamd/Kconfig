@@ -11,8 +11,8 @@ config ATSAMD_SELECT
     select HAVE_GPIO_SPI
     select HAVE_GPIO_HARD_PWM if MACH_SAMD21
     select HAVE_GPIO_BITBANGING
-    select HAVE_STRICT_TIMING
     select HAVE_CHIPID
+    select HAVE_SERVO_STEPPER
 
 config BOARD_DIRECTORY
     string
@@ -125,6 +125,15 @@ config FLASH_START
     default 0x4000 if FLASH_START_4000
     default 0x2000 if FLASH_START_2000
     default 0x0000
+
+choice
+  depends on MACH_SAMD21 && FLASH_START_2000
+  prompt "Bootloader Type"
+  config BOOTLOADER_SAM_BA
+    bool "SAM-BA Bootloader (Arduino Zero)"
+  config BOOTLOADER_UF2
+    bool "UF2 Bootloader (Adafruit Metro)"
+endchoice
 
 config USBSERIAL
     bool "Use USB for communication (instead of serial)" if MACH_SAMD21

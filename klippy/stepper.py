@@ -76,8 +76,8 @@ class MCU_stepper:
                 self._oid, self._step_pin, self._dir_pin,
                 self._mcu.seconds_to_clock(min_stop_interval),
                 self._invert_step))
-        self._mcu.add_config_cmd("reset_step_clock oid=%d clock=0"
-                                 % (self._oid,), on_restart=True)
+        self._mcu.add_config_cmd(
+            "reset_step_clock oid=%d clock=0" % (self._oid,), is_init=True)
         step_cmd_id = self._mcu.lookup_command_id(
             "queue_step oid=%c interval=%u count=%hu add=%hi")
         dir_cmd_id = self._mcu.lookup_command_id(
@@ -94,9 +94,6 @@ class MCU_stepper:
         return self._oid
     def get_step_dist(self):
         return self._step_dist
-    def set_step_dist(self, dist):
-        self._step_dist = dist
-        self.set_stepper_kinematics(self._stepper_kinematics)
     def is_dir_inverted(self):
         return self._invert_dir
     def calc_position_from_coord(self, coord):
@@ -124,9 +121,8 @@ class MCU_stepper:
         old_sk = self._stepper_kinematics
         self._stepper_kinematics = sk
         if sk is not None:
-            self._ffi_lib.itersolve_set_stepcompress(sk, self._stepqueue,
-                                                     self._step_dist)
-            self.set_trapq(self._trapq)
+            self._ffi_lib.itersolve_set_stepcompress(
+                sk, self._stepqueue, self._step_dist)
         return old_sk
     def note_homing_end(self, did_trigger=False):
         ret = self._ffi_lib.stepcompress_reset(self._stepqueue, 0)
@@ -178,20 +174,29 @@ def PrinterStepper(config, units_in_radians=False):
     printer = config.get_printer()
     name = config.get_name()
     # Stepper definition
-    ppins = printer.lookup_object('pins')
-    step_pin = config.get('step_pin')
-    step_pin_params = ppins.lookup_pin(step_pin, can_invert=True)
-    dir_pin = config.get('dir_pin')
-    dir_pin_params = ppins.lookup_pin(dir_pin, can_invert=True)
-    step_dist = config.getfloat('step_distance', above=0.)
-    mcu_stepper = MCU_stepper(name, step_pin_params, dir_pin_params, step_dist,
-                              units_in_radians)
-    # Support for stepper enable pin handling
-    stepper_enable = printer.load_object(config, 'stepper_enable')
-    stepper_enable.register_stepper(mcu_stepper, config.get('enable_pin', None))
-    # Register STEPPER_BUZZ command
-    force_move = printer.load_object(config, 'force_move')
-    force_move.register_stepper(mcu_stepper)
+    short_name = name.split()[-1]
+    if config.has_section('mechaduino ' + short_name):
+        # XXX - this is a temporary hack
+        mechaduino = printer.try_load_module(
+            config, 'mechaduino ' + short_name)
+        mcu_stepper = mechaduino.get_mcu_stepper()
+        mcu_stepper.set_units(units_in_radians)
+    else:
+        ppins = printer.lookup_object('pins')
+        step_pin = config.get('step_pin')
+        step_pin_params = ppins.lookup_pin(step_pin, can_invert=True)
+        dir_pin = config.get('dir_pin')
+        dir_pin_params = ppins.lookup_pin(dir_pin, can_invert=True)
+        step_dist = config.getfloat('step_distance', above=0.)
+        mcu_stepper = MCU_stepper(
+            name, step_pin_params, dir_pin_params, step_dist, units_in_radians)
+        # Support for stepper enable pin handling
+        stepper_enable = printer.try_load_module(config, 'stepper_enable')
+        stepper_enable.register_stepper(
+            mcu_stepper, config.get('enable_pin', None))
+        # Register STEPPER_BUZZ command
+        force_move = printer.try_load_module(config, 'force_move')
+        force_move.register_stepper(mcu_stepper)
     return mcu_stepper
 
 
@@ -256,13 +261,6 @@ class PrinterRail:
                 raise config.error(
                     "Unable to infer homing_positive_dir in section '%s'" % (
                         config.get_name(),))
-        elif ((self.homing_positive_dir
-               and self.position_endstop == self.position_min)
-              or (not self.homing_positive_dir
-                  and self.position_endstop == self.position_max)):
-            raise config.error(
-                "Invalid homing_positive_dir / position_endstop in '%s'"
-                % (config.get_name(),))
     def get_range(self):
         return self.position_min, self.position_max
     def get_homing_info(self):
@@ -290,7 +288,7 @@ class PrinterRail:
         mcu_endstop.add_stepper(stepper)
         name = stepper.get_name(short=True)
         self.endstops.append((mcu_endstop, name))
-        query_endstops = printer.load_object(config, 'query_endstops')
+        query_endstops = printer.try_load_module(config, 'query_endstops')
         query_endstops.register_endstop(mcu_endstop, name)
     def setup_itersolve(self, alloc_func, *params):
         for stepper in self.steppers:
