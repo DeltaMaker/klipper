@@ -58,6 +58,7 @@ class DeltaKinematics:
             s.set_trapq(toolhead.get_trapq())
             toolhead.register_step_generator(s.generate_steps)
         # Setup boundary checks
+        self.diameter = 2.0 * print_radius
         self.need_home = True
         self.limit_xy2 = -1.
         self.home_position = tuple(
@@ -111,7 +112,18 @@ class DeltaKinematics:
     def _motor_off(self, print_time):
         self.limit_xy2 = -1.
         self.need_home = True
+
     def check_move(self, move):
+        def inside_hexagon(pos):
+            dx = abs(pos[0])/self.diameter
+            dy = pos[1]/self.diameter
+            a = 0.433 # 0.25 * math.sqrt(3.0)
+            if not ((dy <= a) and (a*dx - 0.25*dy <= 0.5*a)):
+               logging.info("Moved out of range, x=%.2f, y=%.2f" % (pos[0], pos[1]))
+               logging.info("dy <= a and a*dx + 0.25*dy <= 0.5*a")
+               logging.info("dx=%.3f, dy=%.3f, a=%.3f" % (dx, dy, a))
+            return bool((dy <= a) and (a*dx - 0.25*dy <= 0.5*a))
+            
         end_pos = move.end_pos
         end_xy2 = end_pos[0]**2 + end_pos[1]**2
         if end_xy2 <= self.limit_xy2 and not move.axes_d[2]:
@@ -123,7 +135,8 @@ class DeltaKinematics:
         limit_xy2 = self.max_xy2
         if end_z > self.limit_z:
             limit_xy2 = min(limit_xy2, (self.max_z - end_z)**2)
-        if end_xy2 > limit_xy2 or end_z > self.max_z or end_z < self.min_z:
+        #hexagonal build area
+        if not inside_hexagon(end_pos) or end_z > self.max_z or end_z < self.min_z:    
             # Move out of range - verify not a homing move
             if (end_pos[:2] != self.home_position[:2]
                 or end_z < self.min_z or end_z > self.home_position[2]):

@@ -1,0 +1,8 @@
+admin:
+  active: true
+  apikey: null
+  password: 15a4cf296c9a490805e35bdc5998a21d47b10a5a492ddfec4d4c0dab6f7995efdb8a0007e8236bd82d9b3d7acadf1f8301ae98f041ffdfc706436875d1568d5a
+  roles:
+  - user
+  - admin
+  settings: {}

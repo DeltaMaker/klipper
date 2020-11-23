@@ -1,0 +1,261 @@
+accessControl:
+  salt: gUocy8QZC6c8DceUtYDlmAadW5siL03P
+api:
+  key: 9E5BA439FF304E1E98E9CC97121F5B7F
+appearance:
+  color: blue
+  components:
+    order:
+      sidebar:
+      - connection
+      - state
+      - plugin_automaticshutdown
+      - files
+  name: DeltaMaker Dev
+controls:
+- children:
+  - command: AUTO_BED_MAPPING
+    name: Auto Bed Mapping
+    type: command
+  - command: MOVE_NOZZLE_TO_BED
+    name: Move Nozzle to Bed
+    type: command
+  - command: TOO_LOW
+    name: Too Low
+    type: command
+  - command: TOO_HIGH
+    name: Too High
+    type: command
+  - command: SAVE_AND_HOME
+    name: Save & Home
+    type: command
+  layout: vertical
+  name: Bed Leveling & Nozzle Height
+  type: section
+- children:
+  - children:
+    - command: START_PROBE_CALIBRATION
+      confirm: null
+      name: Start Probe Calibration
+    - command: ABORT_CALIBRATE
+      name: Cancel Calibration
+    layout: horizontal
+  - children:
+    - command: TOO_LOW
+      confirm: null
+      name: Point Too Low
+      type: command
+    - command: TOO_LOW STEP=0.02
+      confirm: null
+      name: +
+      type: command
+    layout: horizontal
+  - children:
+    - command: TOO_HIGH
+      confirm: null
+      name: Point Too High
+      type: command
+    - command: TOO_HIGH STEP=0.02
+      confirm: null
+      name: '-'
+      type: command
+    layout: horizontal
+  - command: ACCEPT_POINT
+    confirm: null
+    name: Next Calibration Point
+    type: command
+  - command: SAVE_PROBE_CALIBRATE
+    confirm: null
+    name: SAVE Calibration
+    type: command
+  layout: vertical
+  name: Touch Probe Calibration (advanced)
+  type: section
+feature:
+  keyboardControl: false
+  modelSizeDetection: false
+  sdSupport: false
+folder:
+  timelapse_tmp: /home/pi/.octoprint/tlapse/tmp
+plugins:
+  _disabled:
+  - softwareupdate
+  - announcements
+  - forcelogin
+  - ipOnConnect
+  announcements:
+    _config_version: 1
+    channels:
+      _blog:
+        read_until: 1551867600
+      _important:
+        read_until: 1521111600
+      _octopi:
+        read_until: 1549966200
+      _plugins:
+        read_until: 1551657600
+      _releases:
+        read_until: 1544449800
+  bedlevelvisualizer:
+    command: '@BEDLEVELVISUALIZER BED_MESH_OUTPUT'
+    save_mesh: false
+  cura:
+    cura_engine: /usr/local/bin/cura_engine
+  discovery:
+    publicPort: 80
+    upnpUuid: 64bf3c61-c25a-40ca-ab5b-d1879c95ee77
+  errortracking:
+    unique_id: 0f969d15-376b-4760-86f7-1943f019a42e
+  klipper:
+    _config_version: 2
+    macros:
+    - macro: 'TC_T0
+
+        '
+      name: TC_T0
+      sidebar: false
+      tab: true
+    - macro: TC_T1
+      name: TC T1
+      sidebar: false
+      tab: true
+    - macro: TC_T2
+      name: TC T2
+      sidebar: false
+      tab: true
+    - macro: DOCK_T0
+      name: Dock T0
+      sidebar: true
+      tab: false
+    - macro: DOCK_T1
+      name: Dock T1
+      sidebar: true
+      tab: false
+    - macro: DOCK_T2
+      name: Dock T2
+      sidebar: true
+      tab: false
+    - macro: PICK_T0
+      name: Pick T0
+      sidebar: true
+      tab: false
+    - macro: PICK_T1
+      name: Pick T1
+      sidebar: true
+      tab: false
+    - macro: PICK_T2
+      name: Pick T2
+      sidebar: true
+      tab: false
+    - macro: ROTATE_TOOL
+      name: Rotate Tool
+      sidebar: false
+      tab: false
+    - macro: START_DEMO
+      name: Start Demo
+      sidebar: false
+      tab: true
+    - macro: STOP_DEMO
+      name: Stop Demo
+      sidebar: false
+      tab: true
+    - macro: INIT_TOOL_OFFSET
+      name: Init Tool Offset
+      sidebar: true
+      tab: false
+    probe:
+      height: '0.1'
+      lift: '25'
+      points:
+      - name: point-1
+        x: 0
+        y: 0
+      - name: point-#
+        x: '50'
+        y: '50'
+        z: 0
+      speed_xy: '4000'
+      speed_z: '4000'
+  navbartemp:
+    displayRaspiTemp: false
+  softwareupdate:
+    _config_version: 6
+  themeify:
+    customRules:
+    - enabled: false
+      rule: background-color
+      selector: .navbar-inner
+      value: '#2f3136'
+    - enabled: false
+      rule: background-color
+      selector: .accordion
+      value: '#2f3136'
+    - enabled: true
+      rule: width
+      selector: .span8
+      value: 70%
+    - enabled: true
+      rule: width
+      selector: .span4
+      value: 25%
+    - enabled: true
+      rule: left-margin
+      selector: .row
+      value: '0'
+    enableCustomization: true
+    theme: material_ui_light
+  tracking:
+    enabled: false
+    unique_id: 99337bc2-86cf-498f-8851-fdba3f498505
+printerProfiles:
+  default: _default
+serial:
+  abortHeatupOnCancel: false
+  additionalPorts:
+  - /tmp/printer
+  autoconnect: true
+  baudrate: 250000
+  disconnectOnErrors: false
+  logPositionOnCancel: true
+  port: /tmp/printer
+server:
+  commands:
+    serverRestartCommand: sudo service octoprint restart
+    systemRestartCommand: sudo shutdown -r now
+    systemShutdownCommand: sudo shutdown -h now
+  firstRun: false
+  onlineCheck:
+    enabled: true
+  pluginBlacklist:
+    enabled: true
+  secretKey: yATztxv9FKCl6Rf6bT8gHpdF5umPouH2
+  seenWizards:
+    bedlevelvisualizer: null
+    corewizard: 3
+    cura: null
+    tracking: null
+system: {}
+temperature:
+  profiles:
+  - bed: 0
+    chamber: null
+    extruder: 230
+    name: DM-PLA
+  - bed: 0
+    chamber: null
+    extruder: 100
+    name: UNLOAD
+  - bed: 95
+    chamber: null
+    extruder: 250
+    name: DM-PETG
+webcam:
+  ffmpeg: /usr/bin/avconv
+  snapshot: http://127.0.0.1:8080/?action=snapshot
+  stream: /webcam/?action=stream
+  streamRatio: '4:3'
+  timelapse:
+    fps: 25
+    options: {}
+    postRoll: 5
+    type: 'off'

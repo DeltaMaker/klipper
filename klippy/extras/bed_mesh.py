@@ -163,6 +163,8 @@ class BedMesh:
             self.last_position[:] = [x, y, z - final_z_adj, e]
         return list(self.last_position)
     def move(self, newpos, speed):
+        if self.toolhead is None:
+            return
         factor = self.get_z_factor(newpos[2])
         if self.z_mesh is None or not factor:
             # No mesh calibrated, or mesh leveling phased out.
