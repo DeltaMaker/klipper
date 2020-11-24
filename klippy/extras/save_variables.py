@@ -50,7 +50,7 @@ class SaveVariables:
             if not self.variablefile.has_section('Variables'):
                 self.variablefile.add_section('Variables')
             self.variablefile.set('Variables',variable_name,
-                              variable_value)
+                              repr(variable_value))
             f = open(self.filename, "w+")
             self.variablefile.write(f)
             f.close()
