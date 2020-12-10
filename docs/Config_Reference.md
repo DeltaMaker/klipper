@@ -6,7 +6,9 @@ to cut-and-paste them into a printer config file. See the
 [installation document](Installation.md) for information on setting up
 Klipper and choosing an initial config file.
 
-# Format of micro-controller pin names
+# Micro-controller configuration
+
+## Format of micro-controller pin names
 
 Many config options require the name of a micro-controller pin.
 Klipper uses the hardware names for these pins - for example `PA4`.
@@ -28,6 +30,49 @@ Note, some config sections may "create" additional pins. Where this
 occurs, the config section defining the pins must be listed in the
 config file before any sections using those pins.
 
+## [mcu]
+
+Configuration of the primary micro-controller.
+
+```
+[mcu]
+serial:
+#   The serial port to connect to the MCU. If unsure (or if it
+#   changes) see the "Where's my serial port?" section of the FAQ.
+#   This parameter must be provided.
+#baud: 250000
+#   The baud rate to use. The default is 250000.
+#pin_map:
+#   This option may be used to enable Arduino pin name aliases. The
+#   default is to not enable the aliases.
+#restart_method:
+#   This controls the mechanism the host will use to reset the
+#   micro-controller. The choices are 'arduino', 'cheetah', 'rpi_usb',
+#   and 'command'. The 'arduino' method (toggle DTR) is common on
+#   Arduino boards and clones. The 'cheetah' method is a special
+#   method needed for some Fysetc Cheetah boards. The 'rpi_usb' method
+#   is useful on Raspberry Pi boards with micro-controllers powered
+#   over USB - it briefly disables power to all USB ports to
+#   accomplish a micro-controller reset. The 'command' method involves
+#   sending a Klipper command to the micro-controller so that it can
+#   reset itself. The default is 'arduino' if the micro-controller
+#   communicates over a serial port, 'command' otherwise.
+```
+
+## [mcu my_extra_mcu]
+
+Additional micro-controllers (one may define any number of sections
+with an "mcu" prefix). Additional micro-controllers introduce
+additional pins that may be configured as heaters, steppers, fans,
+etc.. For example, if an "[mcu extra_mcu]" section is introduced, then
+pins such as "extra_mcu:ar9" may then be used elsewhere in the config
+(where "ar9" is a hardware pin name or alias name on the given mcu).
+
+```
+[mcu my_extra_mcu]
+# See the "mcu" section for configuration parameters.
+```
+
 # Common kinematic settings
 
 ## [printer]
@@ -40,10 +85,10 @@ kinematics:
 #   The type of printer in use. This option may be one of: cartesian,
 #   corexy, corexz, delta, rotary_delta, polar, winch, or none. This
 #   parameter must be specified.
-max_velocity: 500
+max_velocity:
 #   Maximum velocity (in mm/s) of the toolhead (relative to the
 #   print). This parameter must be specified.
-max_accel: 3000
+max_accel:
 #   Maximum acceleration (in mm/s^2) of the toolhead (relative to the
 #   print). This parameter must be specified.
 #max_accel_to_decel:
@@ -122,9 +167,8 @@ position_max:
 
 ## Cartesian Kinematics
 
-See
-[example-cartesian.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/example-cartesian.cfg)
-for an example cartesian kinematics config file.
+See [example-cartesian.cfg](../config/example-cartesian.cfg) for an
+example cartesian kinematics config file.
 
 Only parameters specific to cartesian printers are described here -
 see [common kinematic settings](#common-kinematic-settings) for
@@ -158,9 +202,8 @@ max_z_accel:
 
 ## Linear Delta Kinematics
 
-See
-[example-delta.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/example-delta.cfg)
-for an example linear delta kinematics config file. See the
+See [example-delta.cfg](../config/example-delta.cfg) for an example
+linear delta kinematics config file. See the
 [delta calibrate guide](Delta_Calibrate.md) for information on
 calibration.
 
@@ -197,13 +240,13 @@ delta_radius:
 # left tower (at 210 degrees). This section also controls the homing
 # parameters (homing_speed, homing_retract_dist) for all towers.
 [stepper_a]
-position_endstop: 297.05
+position_endstop:
 #   Distance (in mm) between the nozzle and the bed when the nozzle is
 #   in the center of the build area and the endstop triggers. This
 #   parameter must be provided for stepper_a; for stepper_b and
 #   stepper_c this parameter defaults to the value specified for
 #   stepper_a.
-arm_length: 333.0
+arm_length:
 #   Length (in mm) of the diagonal rod that connects this tower to the
 #   print head. This parameter must be provided for stepper_a; for
 #   stepper_b and stepper_c this parameter defaults to the value
@@ -225,7 +268,7 @@ arm_length: 333.0
 # g-code command that can calibrate the tower endstop positions and
 # angles.
 [delta_calibrate]
-radius: 50
+radius:
 #   Radius (in mm) of the area that may be probed. This is the radius
 #   of nozzle coordinates to be probed; if using an automatic probe
 #   with an XY offset then choose a radius small enough so that the
@@ -240,9 +283,8 @@ radius: 50
 
 ## CoreXY Kinematics
 
-See
-[example-corexy.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/example-corexy.cfg)
-for an example corexy (and h-bot) kinematics file.
+See [example-corexy.cfg](../config/example-corexy.cfg) for an example
+corexy (and h-bot) kinematics file.
 
 Only parameters specific to corexy printers are described here - see
 [common kinematic settings](#common-kinematic-settings) for available
@@ -276,9 +318,8 @@ max_z_accel:
 
 ## CoreXZ Kinematics
 
-See
-[example-corexz.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/example-corexz.cfg)
-for an example corexz kinematics config file.
+See [example-corexz.cfg](../config/example-corexz.cfg) for an example
+corexz kinematics config file.
 
 Only parameters specific to corexz printers are described here - see
 [common kinematic settings](#common-kinematic-settings) for available
@@ -309,9 +350,8 @@ max_z_accel:
 
 ## Polar Kinematics
 
-See
-[example-polar.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/example-polar.cfg)
-for an example polar kinematics config file.
+See [example-polar.cfg](../config/example-polar.cfg) for an example
+polar kinematics config file.
 
 Only parameters specific to polar printers are described here - see
 [common kinematic settings](#common-kinematic-settings) for available
@@ -327,7 +367,7 @@ kinematics: polar
 # The stepper_bed section is used to describe the stepper controlling
 # the bed.
 [stepper_bed]
-step_distance: 0.001963495
+step_distance:
 #   On a polar printer the step_distance is the amount each step pulse
 #   moves the bed in radians (for example, a 1.8 degree stepper with
 #   16 micro-steps would be 2 * pi * (1.8 / 360) / 16 == 0.001963495).
@@ -353,9 +393,8 @@ max_z_accel:
 
 ## Rotary delta Kinematics
 
-See
-[example-rotary-delta.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/example-rotary-delta.cfg)
-for an example rotary delta kinematics config file.
+See [example-rotary-delta.cfg](../config/example-rotary-delta.cfg) for
+an example rotary delta kinematics config file.
 
 Only parameters specific to rotary delta printers are described here -
 see [common kinematic settings](#common-kinematic-settings) for
@@ -367,7 +406,7 @@ timeout and some boundary checks are not implemented.
 ```
 [printer]
 kinematics: rotary_delta
-max_z_velocity: 50
+max_z_velocity:
 #   For delta printers this limits the maximum velocity (in mm/s) of
 #   moves with z axis movement. This setting can be used to reduce the
 #   maximum speed of up/down moves (which require a higher step rate
@@ -376,13 +415,13 @@ max_z_velocity: 50
 #minimum_z_position: 0
 #   The minimum Z position that the user may command the head to move
 #   to.  The default is 0.
-shoulder_radius: 33.900
+shoulder_radius:
 #   Radius (in mm) of the horizontal circle formed by the three
 #   shoulder joints, minus the radius of the circle formed by the
 #   effector joints. This parameter may also be calculated as:
 #     shoulder_radius = (delta_f - delta_e) / sqrt(12)
 #   This parameter must be provided.
-shoulder_height: 412.900
+shoulder_height:
 #   Distance (in mm) of the shoulder joints from the bed, minus the
 #   effector toolhead height. This parameter must be provided.
 
@@ -390,23 +429,23 @@ shoulder_height: 412.900
 # right arm (at 30 degrees). This section also controls the homing
 # parameters (homing_speed, homing_retract_dist) for all arms.
 [stepper_a]
-step_distance: 0.001963495
+step_distance:
 #   On a rotary delta printer the step_distance is the amount each
 #   step pulse moves the upper arm in radians (for example, a directly
 #   connected 1.8 degree stepper with 16 micro-steps would be 2 * pi *
 #   (1.8 / 360) / 16 == 0.001963495). This parameter must be provided.
-position_endstop: 252
+position_endstop:
 #   Distance (in mm) between the nozzle and the bed when the nozzle is
 #   in the center of the build area and the endstop triggers. This
 #   parameter must be provided for stepper_a; for stepper_b and
 #   stepper_c this parameter defaults to the value specified for
 #   stepper_a.
-upper_arm_length: 170.000
+upper_arm_length:
 #   Length (in mm) of the arm connecting the "shoulder joint" to the
 #   "elbow joint". This parameter must be provided for stepper_a; for
 #   stepper_b and stepper_c this parameter defaults to the value
 #   specified for stepper_a.
-lower_arm_length: 320.000
+lower_arm_length:
 #   Length (in mm) of the arm connecting the "elbow joint" to the
 #   "effector joint". This parameter must be provided for stepper_a;
 #   for stepper_b and stepper_c this parameter defaults to the value
@@ -427,7 +466,7 @@ lower_arm_length: 320.000
 # The delta_calibrate section enables a DELTA_CALIBRATE extended
 # g-code command that can calibrate the shoulder endstop positions.
 [delta_calibrate]
-radius: 50
+radius:
 #   Radius (in mm) of the area that may be probed. This is the radius
 #   of nozzle coordinates to be probed; if using an automatic probe
 #   with an XY offset then choose a radius small enough so that the
@@ -442,9 +481,8 @@ radius: 50
 
 ## Cable winch Kinematics
 
-See the
-[example-winch.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/example-winch.cfg)
-for an example cable winch kinematics config file.
+See the [example-winch.cfg](../config/example-winch.cfg) for an
+example cable winch kinematics config file.
 
 Only parameters specific to cable winch printers are described here -
 see [common kinematic settings](#common-kinematic-settings) for
@@ -463,13 +501,13 @@ kinematics: winch
 # cable winch. A minimum of 3 and a maximum of 26 cable winches may be
 # defined (stepper_a to stepper_z) though it is common to define 4.
 [stepper_a]
-step_distance: .01
+step_distance:
 #   The step_distance is the nominal distance (in mm) the toolhead
 #   moves towards the cable winch on each step pulse. This parameter
 #   must be provided.
-anchor_x: 0
-anchor_y: -2000
-anchor_z: -100
+anchor_x:
+anchor_y:
+anchor_z:
 #   The x, y, and z position of the cable winch in cartesian space.
 #   These parameters must be provided.
 ```
@@ -489,37 +527,6 @@ max_accel: 1
 #   values are not used for "none" kinematics.
 ```
 
-# Primary micro-controller support
-
-## [mcu]
-
-Configuration of the primary micro-controller.
-
-```
-[mcu]
-serial:
-#   The serial port to connect to the MCU. If unsure (or if it
-#   changes) see the "Where's my serial port?" section of the FAQ.
-#   This parameter must be provided.
-#baud: 250000
-#   The baud rate to use. The default is 250000.
-#pin_map:
-#   This option may be used to enable Arduino pin name aliases. The
-#   default is to not enable the aliases.
-#restart_method:
-#   This controls the mechanism the host will use to reset the
-#   micro-controller. The choices are 'arduino', 'cheetah', 'rpi_usb',
-#   and 'command'. The 'arduino' method (toggle DTR) is common on
-#   Arduino boards and clones. The 'cheetah' method is a special
-#   method needed for some Fysetc Cheetah boards. The 'rpi_usb' method
-#   is useful on Raspberry Pi boards with micro-controllers powered
-#   over USB - it briefly disables power to all USB ports to
-#   accomplish a micro-controller reset. The 'command' method involves
-#   sending a Klipper command to the micro-controller so that it can
-#   reset itself. The default is 'arduino' if the micro-controller
-#   communicates over a serial port, 'command' otherwise.
-```
-
 # Common extruder and heated bed support
 
 ## [extruder]
@@ -536,10 +543,10 @@ dir_pin:
 enable_pin:
 step_distance:
 #   See the "stepper" section for a description of the above parameters.
-nozzle_diameter: 0.400
+nozzle_diameter:
 #   Diameter of the nozzle orifice (in mm). This parameter must be
 #   provided.
-filament_diameter: 1.750
+filament_diameter:
 #   The nominal diameter of the raw filament (in mm) as it enters the
 #   extruder. This parameter must be provided.
 #max_extrude_cross_section:
@@ -589,13 +596,12 @@ heater_pin:
 #   allow the pin to be enabled for no more than half the time. This
 #   setting may be used to limit the total power output (over extended
 #   periods) to the heater. The default is 1.0.
-sensor_type: EPCOS 100K B57560G104F
+sensor_type:
 #   Type of sensor - common thermistors are "EPCOS 100K B57560G104F",
 #   "ATC Semitec 104GT-2", "NTC 100K beta 3950", "Honeywell 100K
 #   135-104LAG-J01", "NTC 100K MGB18-104F39050L32", "SliceEngineering
-#   450", and "TDK NTCG104LH104JT1". See the "Heaters and temperature
-#   sensors" section for other sensors. This parameter must be
-#   provided.
+#   450", and "TDK NTCG104LH104JT1". See the "Temperature sensors"
+#   section for other sensors. This parameter must be provided.
 sensor_pin:
 #   Analog input pin connected to the sensor. This parameter must be
 #   provided.
@@ -603,25 +609,20 @@ sensor_pin:
 #   The resistance (in ohms) of the pullup attached to the thermistor.
 #   This parameter is only valid when the sensor is a thermistor. The
 #   default is 4700 ohms.
-#inline_resistor: 0
-#   The resistance (in ohms) of an extra (not heat varying) resistor
-#   that is placed inline with the thermistor. It is rare to set this.
-#   This parameter is only valid when the sensor is a thermistor. The
-#   default is 0 ohms.
 #smooth_time: 2.0
 #   A time value (in seconds) over which temperature measurements will
 #   be smoothed to reduce the impact of measurement noise. The default
 #   is 2 seconds.
-control: pid
+control:
 #   Control algorithm (either pid or watermark). This parameter must
 #   be provided.
-pid_Kp: 22.2
+pid_Kp:
 #   Kp is the "proportional" constant for the pid. This parameter must
 #   be provided for PID heaters.
-pid_Ki: 1.08
+pid_Ki:
 #   Ki is the "integral" constant for the pid. This parameter must be
 #   provided for PID heaters.
-pid_Kd: 114
+pid_Kd:
 #   Kd is the "derivative" constant for the pid. This parameter must
 #   be provided for PID heaters.
 #pid_integral_max:
@@ -640,8 +641,8 @@ pid_Kd: 114
 #min_extrude_temp: 170
 #   The minimum temperature (in Celsius) at which extruder move
 #   commands may be issued. The default is 170 Celsius.
-min_temp: 0
-max_temp: 210
+min_temp:
+max_temp:
 #   The maximum range of valid temperatures (in Celsius) that the
 #   heater must remain within. This controls a safety feature
 #   implemented in the micro-controller code - should the measured
@@ -832,12 +833,12 @@ information.
 
 ```
 [bed_screws]
-#screw1: 100,100
+#screw1:
 #   The X,Y coordinate of the first bed leveling screw. This is a
 #   position to command the nozzle to that is directly above the bed
 #   screw (or as close as possible while still being above the bed).
 #   This parameter must be provided.
-#screw1_name: front screw
+#screw1_name:
 #   An arbitrary name for the given screw. This name is displayed when
 #   the helper script runs. The default is to use a name based upon
 #   the screw XY location.
@@ -878,13 +879,13 @@ additional information.
 
 ```
 [screws_tilt_adjust]
-#screw1: 100,100
+#screw1:
 #   The X,Y coordinate of the first bed leveling screw. This is a
 #   position to command the nozzle to that is directly above the bed
 #   screw (or as close as possible while still being above the bed).
 #   This is the base screw used in calculations. This parameter must
 #   be provided.
-#screw1_name: front screw
+#screw1_name:
 #   An arbitrary name for the given screw. This name is displayed when
 #   the helper script runs. The default is to use a name based upon
 #   the screw XY location.
@@ -1099,7 +1100,7 @@ for additional information.
 #   This setting is automatically determined if one uses a TMC driver
 #   with run-time configuration. Otherwise, this parameter must be
 #   provided.
-#endstop_accuracy: 0.200
+#endstop_accuracy:
 #   Sets the expected accuracy (in mm) of the endstop. This represents
 #   the maximum error distance the endstop may trigger (eg, if an
 #   endstop may occasionally trigger 100um early or up to 100um late
@@ -1164,8 +1165,8 @@ G-Code macros (one may define any number of sections with a
 ## [delayed_gcode]
 
 Execute a gcode on a set delay. See the
-[command template guide](Command_Templates.md#delayed-gcodes) for more
-information.
+[command template guide](Command_Templates.md#delayed-gcodes) and
+[command reference](G-Codes.md#delayed-gcode) for more information.
 
 ```
 [delayed_gcode my_delayed_gcode]
@@ -1180,6 +1181,20 @@ gcode:
 #   useful for initialization procedures or a repeating delayed_gcode.
 #   If set to 0 the delayed_gcode will not execute on startup.
 #   Default is 0.
+```
+
+## [save_variables]
+
+Support saving variables to disk so that they are retained across
+restarts. See
+[command templates](Command_Templates.md#save-variables-to-disk) and
+[G-Code reference](G-Codes.md#save-variables) for further information.
+
+```
+[save_variables]
+filename:
+#   Required - provide a filename that would be used to save the
+#   variables to disk e.g. ~/variables.cfg
 ```
 
 ## [idle_timeout]
@@ -1209,7 +1224,7 @@ sdcard G-Code commands (eg, M24).
 
 ```
 [virtual_sdcard]
-path: ~/.octoprint/uploads/
+path:
 #   The path of the local directory on the host machine to look for
 #   g-code files. This is a read-only directory (sdcard file writes
 #   are not supported). One may point this to OctoPrint's upload
@@ -1350,8 +1365,7 @@ an explicit name (eg, [adxl345 my_chip_name]).
 ```
 [adxl345]
 cs_pin:
-#   The SPI enable pin for the sensor. This parameter must be
-#   provided.
+#   The SPI enable pin for the sensor. This parameter must be provided.
 #spi_speed: 5000000
 #   The SPI speed (in hz) to use when communicating with the chip.
 #   The default is 5000000.
@@ -1359,8 +1373,8 @@ cs_pin:
 #spi_software_sclk_pin:
 #spi_software_mosi_pin:
 #spi_software_miso_pin:
-#   These optional parameters allow one to customize the SPI settings
-#   used to communicate with the chip.
+#   See the "common SPI settings" section for a description of the
+#   above parameters.
 #axes_map: x,y,z
 #   The accelerometer axis for each of the printer's x, y, and z axes.
 #   This may be useful if the accelerometer is mounted in an
@@ -1495,7 +1509,7 @@ z_offset:
 #sample_retract_dist: 2.0
 #   The distance (in mm) to lift the toolhead between each sample (if
 #   sampling more than once). The default is 2mm.
-#lift_speed: 5.0
+#lift_speed:
 #   Speed (in mm/s) of the Z axis when lifting the probe between
 #   samples. The default is to use the same value as the 'speed'
 #   parameter.
@@ -1583,22 +1597,6 @@ control_pin:
 #   See the "probe" section for information on these parameters.
 ```
 
-# Additional micro-controllers
-
-## [mcu my_extra_mcu]
-
-Additional micro-controllers (one may define any number of sections
-with an "mcu" prefix). Additional micro-controllers introduce
-additional pins that may be configured as heaters, steppers, fans,
-etc.. For example, if an "[mcu extra_mcu]" section is introduced, then
-pins such as "extra_mcu:ar9" may then be used elsewhere in the config
-(where "ar9" is a hardware pin name or alias name on the given mcu).
-
-```
-[mcu my_extra_mcu]
-# See the "mcu" section for configuration parameters.
-```
-
 # Additional stepper motors and extruders
 
 ## [stepper_z1]
@@ -1630,8 +1628,7 @@ each additional extruder. The additional extruder sections should be
 named "extruder1", "extruder2", "extruder3", and so on. See the
 "extruder" section for a description of available parameters.
 
-See
-[sample-multi-extruder.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/sample-multi-extruder.cfg)
+See [sample-multi-extruder.cfg](../config/sample-multi-extruder.cfg)
 for an example configuration.
 
 ```
@@ -1661,9 +1658,8 @@ typically combined with extra extruders - the SET_DUAL_CARRIAGE
 command is often called at the same time as the ACTIVATE_EXTRUDER
 command. Be sure to park the carriages during deactivation.
 
-See
-[sample-idex.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/sample-idex.cfg)
-for an example configuration.
+See [sample-idex.cfg](../config/sample-idex.cfg) for an example
+configuration.
 
 ```
 [dual_carriage]
@@ -1735,7 +1731,7 @@ normal printer kinematics.
 #   MANUAL_STEPPER movement commands.
 ```
 
-# Heaters and temperature sensors
+# Custom heaters and sensors
 
 ## [verify_heater]
 
@@ -1790,84 +1786,6 @@ Tool to disable heaters when homing or probing an axis.
 #   A comma separated list of heaters to disable during homing/probing
 #   moves. The default is to disable all heaters.
 #   Typical example: extruder, heater_bed
-```
-
-## MAXxxxxx temperature sensors
-
-MAXxxxxx serial peripheral interface (SPI) temperature based
-sensors. The following parameters are available in heater sections
-that use one of these sensor types.
-
-```
-#[extruder]
-# See the "extruder" section for a description of heater parameters.
-# The parameters below describe sensor parameters.
-#sensor_type:
-#   One of "MAX6675", "MAX31855", "MAX31856", or "MAX31865".
-#spi_speed: 4000000
-#   The SPI speed (in hz) to use when communicating with the chip.
-#   The default is 4000000.
-#spi_bus:
-#spi_software_sclk_pin:
-#spi_software_mosi_pin:
-#spi_software_miso_pin:
-#   These optional parameters allow one to customize the SPI settings
-#   used to communicate with the chip.
-#sensor_pin:
-#   The chip select line for the sensor chip. This parameter must be
-#   provided.
-#tc_type: K
-#tc_use_50Hz_filter: False
-#tc_averaging_count: 1
-#   The above parameters control the sensor parameters of MAX31856
-#   chips. The defaults for each parameter are next to the parameter
-#   name in the above list.
-#rtd_nominal_r: 100
-#rtd_reference_r: 430
-#rtd_num_of_wires: 2
-#rtd_use_50Hz_filter: False
-#   The above parameters control the sensor parameters of MAX31865
-#   chips. The defaults for each parameter are next to the parameter
-#   name in the above list.
-```
-
-## Common temperature amplifiers
-
-Common temperature amplifiers. The following parameters are available
-in heater sections that use one of these sensors.
-
-```
-#[extruder]
-# See the "extruder" section for a description of heater parameters.
-# The parameters below describe sensor parameters.
-#sensor_type:
-#   One of "PT100 INA826", "AD595", "AD597", "AD8494", "AD8495",
-#   "AD8496", or "AD8497".
-#sensor_pin:
-#   Analog input pin connected to the sensor. This parameter must be
-#   provided.
-#adc_voltage: 5.0
-#   The ADC comparison voltage (in Volts). The default is 5 volts.
-#voltage_offset: 0
-#   The ADC voltage offset (in Volts). The default is 0.
-```
-
-## Directly connected PT1000 sensor
-
-Directly connected PT1000 sensor. The following parameters are
-available in heater sections that use one of these sensors.
-
-```
-#[extruder]
-# See the "extruder" section for a description of heater parameters.
-# The parameters below describe sensor parameters.
-#sensor_type: PT1000
-#sensor_pin:
-#   Analog input pin connected to the sensor. This parameter must be
-#   provided.
-#pullup_resistor: 4700
-#   The resistance (in ohms) of the pullup attached to the sensor. The
-#   default is 4700 ohms.
 ```
 
 ## [thermistor]
@@ -1938,112 +1856,6 @@ section.
 #   least two measurements must be provided.
 ```
 
-## bme280 temperature sensor
-
-BME280 two wire interface (I2C) environmental sensor. Note that this
-sensor is not intended for use with extruders and heater beds, but
-rather for monitoring ambient temperature (C), pressure (hPa), and
-relative humidity. See
-[sample-macros.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/sample-macros.cfg)
-for a gcode_macro that may be used to report pressure and humidity in
-addition to temperature.
-
-```
-#[temperature_sensor my_sensor]
-# See the "temperature_sensor" section for a description of its
-# parameters. The parameters below describe BME280 sensor parameters.
-#sensor_type:
-#   Must be "BME280"
-#i2c_address:
-#   Default is 118 (0x76). Some BME280 sensors have an address of 119
-#   (0x77).
-#i2c_mcu:
-#   MCU the sensor is connected to. Default is the primary mcu.
-#i2c_bus:
-#   The I2C bus the sensor is connected to. On some MCU platforms the
-#   default is bus 0. On platforms without bus 0 this parameter is
-#   required.
-#i2c_speed:
-#   The I2C speed (in Hz) to use when communicating with the sensor.
-#   Default is 100000. On some MCUs changing this value has no effect.
-```
-
-## HTU21D sensor
-
-HTU21D family two wire interface (I2C) environmental sensor. Note that
-this sensor is not intended for use with extruders and heater beds,
-but rather for monitoring ambient temperature (C) and relative
-humidity. See
-[sample-macros.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/sample-macros.cfg)
-for a gcode_macro that may be used to report humidity in addition to
-temperature.
-
-```
-#[temperature_sensor my_sensor]
-# See the "temperature_sensor" section for a description of its
-# parameters. The parameters below describe HTU21D family sensor
-# parameters.
-#sensor_type:
-#   Must be "HTU21D" , "SI7013", "SI7020", "SI7021" or "SHT21"
-#i2c_address:
-#   Default is 64 (0x40).
-#i2c_mcu:
-#   MCU the sensor is connected to. Default is the primary mcu.
-#i2c_bus:
-#   The I2C bus the sensor is connected to. On some MCU platforms the
-#   default is bus 0. On platforms without bus 0 this parameter is
-#   required.
-#i2c_speed:
-#   The I2C speed (in Hz) to use when communicating with the sensor.
-#   Default is 100000. On some MCUs changing this value has no effect.
-#htu21d_hold_master:
-#   If the sensor can hold the I2C buf while reading. If True no other
-#   bus communication can be performed while reading is in progress.
-#   Default is False.
-#htu21d_resolution:
-#   The resolution of temperature and humidity reading.
-#   Valid values are:
-#    'TEMP14_HUM12' -> 14bit for Temp and 12bit for humidity
-#    'TEMP13_HUM10' -> 13bit for Temp and 10bit for humidity
-#    'TEMP12_HUM08' -> 12bit for Temp and 08bit for humidity
-#    'TEMP11_HUM11' -> 11bit for Temp and 11bit for humidity
-#   Default is: "TEMP11_HUM11"
-#htu21d_report_time:
-#   Interval in seconds between readings. Default is 30
-```
-
-## LM75 temperature sensor
-
-LM75/LM75A two wire (I2C) connected temperature sensors. These sensors
-have range up to 125 C, so are usable for e.g. chamber temperature
-monitoring. They can also function as simple fan/heater controllers
-but this mode is not used here.
-
-```
-#[temperature_sensor my_sensor]
-# See the "temperature_sensor" section for a description of its
-# parameters. The parameters below describe LM75 family sensor
-# parameters.
-#sensor_type:
-#   Must be "LM75".
-#i2c_address:
-#   Default is 72 (0x48). Normal range is 72-79 (0x48-0x4F) and the 3
-#   low bits of the address are configured via pins on the chip
-#   (usually with jumpers or hard wired).
-#i2c_mcu:
-#   MCU the sensor is connected to. Default is the primary mcu.
-#i2c_bus:
-#   The I2C bus the sensor is connected to. On some MCU platforms the
-#   default is bus 0. On platforms without bus 0 this parameter is
-#   required.
-#i2c_speed:
-#   The I2C speed (in Hz) to use when communicating with the sensor.
-#   Default is 100000. On some MCUs changing this value has no effect.
-#lm75_report_time:
-#   Interval in seconds between readings. Default is 0.8, with minimum
-#   0.5.
-```
-
 ## [heater_generic]
 
 Generic heaters (one may define any number of sections with a
@@ -2054,7 +1866,7 @@ temperature.
 
 ```
 [heater_generic my_generic_heater]
-#gcode_id: C
+#gcode_id:
 #   The id to use when reporting the temperature in the M105 command.
 #   This parameter must be provided.
 #heater_pin:
@@ -2090,6 +1902,226 @@ temperature sensors that are reported via the M105 command.
 #gcode_id:
 #   See the "heater_generic" section for the definition of this
 #   parameter.
+```
+
+# Temperature sensors
+
+Klipper includes definitions for many types of temperature sensors.
+These sensors may be used in any config section that requires a
+temperature sensor (such as an `[extruder]` or `[heated_bed]`
+section).
+
+## Common thermistors
+
+Common thermistors. The following parameters are available in heater
+sections that use one of these sensors.
+
+```
+sensor_type:
+#   One of "EPCOS 100K B57560G104F", "ATC Semitec 104GT-2",
+#   "NTC 100K beta 3950", "Honeywell 100K 135-104LAG-J01",
+#   "NTC 100K MGB18-104F39050L32", "SliceEngineering 450", or
+#   "TDK NTCG104LH104JT1"
+sensor_pin:
+#   Analog input pin connected to the thermistor. This parameter must
+#   be provided.
+#pullup_resistor: 4700
+#   The resistance (in ohms) of the pullup attached to the thermistor.
+#   The default is 4700 ohms.
+#inline_resistor: 0
+#   The resistance (in ohms) of an extra (not heat varying) resistor
+#   that is placed inline with the thermistor. It is rare to set this.
+#   The default is 0 ohms.
+```
+
+## Common temperature amplifiers
+
+Common temperature amplifiers. The following parameters are available
+in heater sections that use one of these sensors.
+
+```
+sensor_type:
+#   One of "PT100 INA826", "AD595", "AD597", "AD8494", "AD8495",
+#   "AD8496", or "AD8497".
+sensor_pin:
+#   Analog input pin connected to the sensor. This parameter must be
+#   provided.
+#adc_voltage: 5.0
+#   The ADC comparison voltage (in Volts). The default is 5 volts.
+#voltage_offset: 0
+#   The ADC voltage offset (in Volts). The default is 0.
+```
+
+## Directly connected PT1000 sensor
+
+Directly connected PT1000 sensor. The following parameters are
+available in heater sections that use one of these sensors.
+
+```
+sensor_type: PT1000
+sensor_pin:
+#   Analog input pin connected to the sensor. This parameter must be
+#   provided.
+#pullup_resistor: 4700
+#   The resistance (in ohms) of the pullup attached to the sensor. The
+#   default is 4700 ohms.
+```
+
+## MAXxxxxx temperature sensors
+
+MAXxxxxx serial peripheral interface (SPI) temperature based
+sensors. The following parameters are available in heater sections
+that use one of these sensor types.
+
+```
+sensor_type:
+#   One of "MAX6675", "MAX31855", "MAX31856", or "MAX31865".
+sensor_pin:
+#   The chip select line for the sensor chip. This parameter must be
+#   provided.
+#spi_speed: 4000000
+#   The SPI speed (in hz) to use when communicating with the chip.
+#   The default is 4000000.
+#spi_bus:
+#spi_software_sclk_pin:
+#spi_software_mosi_pin:
+#spi_software_miso_pin:
+#   See the "common SPI settings" section for a description of the
+#   above parameters.
+#tc_type: K
+#tc_use_50Hz_filter: False
+#tc_averaging_count: 1
+#   The above parameters control the sensor parameters of MAX31856
+#   chips. The defaults for each parameter are next to the parameter
+#   name in the above list.
+#rtd_nominal_r: 100
+#rtd_reference_r: 430
+#rtd_num_of_wires: 2
+#rtd_use_50Hz_filter: False
+#   The above parameters control the sensor parameters of MAX31865
+#   chips. The defaults for each parameter are next to the parameter
+#   name in the above list.
+```
+
+## bme280 temperature sensor
+
+BME280 two wire interface (I2C) environmental sensor. Note that this
+sensor is not intended for use with extruders and heater beds, but
+rather for monitoring ambient temperature (C), pressure (hPa), and
+relative humidity. See
+[sample-macros.cfg](../config/sample-macros.cfg) for a gcode_macro
+that may be used to report pressure and humidity in addition to
+temperature.
+
+```
+sensor_type: bme280
+#i2c_address:
+#   Default is 118 (0x76). Some BME280 sensors have an address of 119
+#   (0x77).
+#i2c_mcu:
+#i2c_bus:
+#i2c_speed:
+#   See the "common I2C settings" section for a description of the
+#   above parameters.
+```
+
+## HTU21D sensor
+
+HTU21D family two wire interface (I2C) environmental sensor. Note that
+this sensor is not intended for use with extruders and heater beds,
+but rather for monitoring ambient temperature (C) and relative
+humidity. See [sample-macros.cfg](../config/sample-macros.cfg) for a
+gcode_macro that may be used to report humidity in addition to
+temperature.
+
+```
+sensor_type:
+#   Must be "HTU21D" , "SI7013", "SI7020", "SI7021" or "SHT21"
+#i2c_address:
+#   Default is 64 (0x40).
+#i2c_mcu:
+#i2c_bus:
+#i2c_speed:
+#   See the "common I2C settings" section for a description of the
+#   above parameters.
+#htu21d_hold_master:
+#   If the sensor can hold the I2C buf while reading. If True no other
+#   bus communication can be performed while reading is in progress.
+#   Default is False.
+#htu21d_resolution:
+#   The resolution of temperature and humidity reading.
+#   Valid values are:
+#    'TEMP14_HUM12' -> 14bit for Temp and 12bit for humidity
+#    'TEMP13_HUM10' -> 13bit for Temp and 10bit for humidity
+#    'TEMP12_HUM08' -> 12bit for Temp and 08bit for humidity
+#    'TEMP11_HUM11' -> 11bit for Temp and 11bit for humidity
+#   Default is: "TEMP11_HUM11"
+#htu21d_report_time:
+#   Interval in seconds between readings. Default is 30
+```
+
+## LM75 temperature sensor
+
+LM75/LM75A two wire (I2C) connected temperature sensors. These sensors
+have range up to 125 C, so are usable for e.g. chamber temperature
+monitoring. They can also function as simple fan/heater controllers.
+
+```
+sensor_type: lm75
+#i2c_address:
+#   Default is 72 (0x48). Normal range is 72-79 (0x48-0x4F) and the 3
+#   low bits of the address are configured via pins on the chip
+#   (usually with jumpers or hard wired).
+#i2c_mcu:
+#i2c_bus:
+#i2c_speed:
+#   See the "common I2C settings" section for a description of the
+#   above parameters.
+#lm75_report_time:
+#   Interval in seconds between readings. Default is 0.8, with minimum
+#   0.5.
+```
+
+## Builtin micro-controller temperature sensor
+
+The atsam, atsamd, and stm32 micro-controllers contain an internal
+temperature sensor. One can use the "temperature_mcu" sensor to
+monitor these temperatures.
+
+```
+sensor_type: temperature_mcu
+#sensor_mcu: mcu
+#   The micro-controller to read from. The default is "mcu".
+#sensor_temperature1:
+#sensor_adc1:
+#   Specify the above two parameters (a temperature in Celsius and an
+#   ADC value as a float between 0.0 and 1.0) to calibrate the
+#   micro-controller temperature. This may improve the reported
+#   temperature accuracy on some chips. A typical way to obtain this
+#   calibration information is to completely remove power from the
+#   printer for a few hours (to ensure it is at the ambient
+#   temperature), then power it up and use the QUERY_ADC command to
+#   obtain an ADC measurement. Use some other temperature sensor on
+#   the printer to find the corresponding ambient temperature. The
+#   default is to use the factory calibration data on the
+#   micro-controller (if applicable) or the nominal values from the
+#   micro-controller specification.
+#sensor_temperature2:
+#sensor_adc2:
+#   If sensor_temperature1/sensor_adc1 is specified then one may also
+#   specify sensor_temperature2/sensor_adc2 calibration data. Doing so
+#   may provide calibrated "temperature slope" information. The
+#   default is to use the factory calibration data on the
+#   micro-controller (if applicable) or the nominal values from the
+#   micro-controller specification.
+```
+
+## RPi temperature sensor
+
+CPU temperature from the Raspberry Pi running the host software.
+
+```
+sensor_type: rpi_temperature
 ```
 
 # Fans
@@ -2222,6 +2254,9 @@ sections with a "temperature_fan" prefix). A "temperature fan" is a
 fan that will be enabled whenever its associated sensor is above a set
 temperature. By default, a temperature_fan has a shutdown_speed equal
 to max_power.
+
+See the [command reference](G-Codes.md#temperature-fan-commands) for
+additional information.
 
 ```
 [temperature_fan my_temp_fan]
@@ -2488,13 +2523,13 @@ cs_pin:
 #   The pin corresponding to the TMC2130 chip select line. This pin
 #   will be set to low at the start of SPI messages and raised to high
 #   after the message completes. This parameter must be provided.
-#spi_bus:
 #spi_speed:
+#spi_bus:
 #spi_software_sclk_pin:
 #spi_software_mosi_pin:
 #spi_software_miso_pin:
-#   These optional parameters allow one to customize the SPI settings
-#   used to communicate with the chip.
+#   See the "common SPI settings" section for a description of the
+#   above parameters.
 microsteps:
 #   The number of microsteps to configure the driver to use. Valid
 #   values are 1, 2, 4, 8, 16, 32, 64, 128, 256. This parameter must
@@ -2670,19 +2705,15 @@ cs_pin:
 #   will be set to low at the start of SPI messages and set to high
 #   after the message transfer completes. This parameter must be
 #   provided.
-#spi_bus:
-#   Select the SPI bus the TMC2660 stepper driver is connected to.
-#   This depends on the physical connections on your board, as well as
-#   the SPI implementation of your particular micro-controller. The
-#   default is to use the default micro-controller spi bus.
 #spi_speed: 4000000
 #   SPI bus frequency used to communicate with the TMC2660 stepper
 #   driver. The default is 4000000.
+#spi_bus:
 #spi_software_sclk_pin:
 #spi_software_mosi_pin:
 #spi_software_miso_pin:
-#   These optional parameters allow one to customize the SPI settings
-#   used to communicate with the chip.
+#   See the "common SPI settings" section for a description of the
+#   above parameters.
 microsteps:
 #   The number of microsteps to configure the driver to use. Valid
 #   values are 1, 2, 4, 8, 16, 32, 64, 128, 256. This parameter must
@@ -2747,13 +2778,13 @@ cs_pin:
 #   The pin corresponding to the TMC5160 chip select line. This pin
 #   will be set to low at the start of SPI messages and raised to high
 #   after the message completes. This parameter must be provided.
-#spi_bus:
 #spi_speed:
+#spi_bus:
 #spi_software_sclk_pin:
 #spi_software_mosi_pin:
 #spi_software_miso_pin:
-#   These optional parameters allow one to customize the SPI settings
-#   used to communicate with the chip.
+#   See the "common SPI settings" section for a description of the
+#   above parameters.
 microsteps:
 #   The number of microsteps to configure the driver to use. Valid
 #   values are 1, 2, 4, 8, 16, 32, 64, 128, 256. This parameter must
@@ -2834,13 +2865,13 @@ enable_pin:
 #   The pin corresponding to the AD5206 chip select line. This pin
 #   will be set to low at the start of SPI messages and raised to high
 #   after the message completes. This parameter must be provided.
-#spi_bus:
 #spi_speed:
+#spi_bus:
 #spi_software_sclk_pin:
 #spi_software_mosi_pin:
 #spi_software_miso_pin:
-#   These optional parameters allow one to customize the SPI settings
-#   used to communicate with the chip.
+#   See the "common SPI settings" section for a description of the
+#   above parameters.
 #channel_1:
 #channel_2:
 #channel_3:
@@ -2876,6 +2907,11 @@ define any number of sections with an "mcp4451" prefix).
 i2c_address:
 #   The i2c address that the chip is using on the i2c bus. This
 #   parameter must be provided.
+#i2c_mcu:
+#i2c_bus:
+#i2c_speed:
+#   See the "common I2C settings" section for a description of the
+#   above parameters.
 #wiper_0:
 #wiper_1:
 #wiper_2:
@@ -2904,12 +2940,14 @@ prefix).
 
 ```
 [mcp4728 my_dac]
-#i2c_mcu: mcu
-#   The name of the micro-controller that the MCP4451 chip is
-#   connected to. The default is "mcu".
 #i2c_address: 96
 #   The i2c address that the chip is using on the i2c bus. The default
 #   is 96.
+#i2c_mcu:
+#i2c_bus:
+#i2c_speed:
+#   See the "common I2C settings" section for a description of the
+#   above parameters.
 #channel_a:
 #channel_b:
 #channel_c:
@@ -2998,7 +3036,7 @@ lcd_type:
 #   The pins connected to an uc1701 type lcd. The rst_pin is
 #   optional. The cs_pin and a0_pin parameters must be provided when
 #   using an uc1701 display.
-#contrast: 40
+#contrast:
 #   The contrast to set when using a uc1701 or SSD1306/SH1106 type
 #   display For UC1701 the value may range from 0 to 63. Default is
 #   40. For SSD1306/SH1106 the value may range from 0 to 256. Default
@@ -3010,20 +3048,20 @@ lcd_type:
 #x_offset: 0
 #   Set the horizontal offset value on SSD1306/SH1106 displays.
 #   Default is 0.
-#invert: FALSE
+#invert: False
 #   TRUE inverts the pixels on certain OLED (SSD1306/SH1106) displays.
-#   The default is FALSE.
+#   The default is False.
 #cs_pin:
 #dc_pin:
-#spi_bus:
 #spi_speed:
+#spi_bus:
 #spi_software_sclk_pin:
 #spi_software_mosi_pin:
 #spi_software_miso_pin:
 #   The pins connected to an ssd1306 type lcd when in "4-wire" spi
-#   mode. The parameters that start with "spi_" are optional and they
-#   control the spi settings used to communicate with the chip. The
-#   default is to use i2c mode for ssd1306 displays.
+#   mode. See the "common SPI settings" section for a description of
+#   the parameters that start with "spi_". The default is to use i2c
+#   mode for ssd1306 displays.
 #reset_pin:
 #   A reset pin may be specified on ssd1306 displays. If it is not
 #   specified then the hardware must have a pull-up on the
@@ -3103,9 +3141,15 @@ groups. The display will show all the data items for a given group if
 the display_group option in the [display] section is set to the given
 group name.
 
+A
+[default set of display groups](../klippy/extras/display/display.cfg)
+are automatically created. One can replace or extend these
+display_data items by overriding the defaults in the main printer.cfg
+config file.
+
 ```
 [display_data my_group_name my_data_name]
-position: 0, 0
+position:
 #   Comma separated row and column of the display position that should
 #   be used to display the information. This parameter must be
 #   provided.
@@ -3149,9 +3193,8 @@ will be assigned the given display data which can then be referenced
 in the display templates by their name surrounded by two "tilde"
 symbols i.e. `~my_display_glyph~`
 
-See
-[sample-glyphs.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/sample-glyphs.cfg)
-for some examples.
+See [sample-glyphs.cfg](../config/sample-glyphs.cfg) for some
+examples.
 
 ```
 [display_glyph my_display_glyph]
@@ -3187,6 +3230,12 @@ thus they do not support the "menu" options or button configuration.
 
 ## [menu]
 
+Customizable lcd display menus.
+
+A [default set of menus](../klippy/extras/display/menu.cfg) are
+automatically created. One can replace or extend the menu by
+overriding the defaults in the main printer.cfg config file.
+
 Available options in menu Jinja2 template context:
 
 Read-only attributes for menu element:
@@ -3209,6 +3258,11 @@ List of actions for menu element:
 
 ```
 # Common parameters available for all menu config sections.
+#[menu __some_list __some_name]
+#type: disabled
+#   Permanently disabled menu element, only required attribute is 'type'.
+#   Allows you to easily disable/hide existing menu items.
+
 #[menu some_name]
 #type:
 #   One of command, input, list, text:
@@ -3395,8 +3449,7 @@ with an "sx1509" prefix. Each expander provides a set of 16 pins
 (sx1509_my_sx1509:PIN_0 to sx1509_my_sx1509:PIN_15) which can be used
 in the printer configuration.
 
-See the
-[generic-duet2-duex.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/generic-duet2-duex.cfg)
+See the [generic-duet2-duex.cfg](../config/generic-duet2-duex.cfg)
 file for an example.
 
 ```
@@ -3405,9 +3458,11 @@ i2c_address:
 #   I2C address used by this expander. Depending on the hardware
 #   jumpers this is one out of the following addresses: 62 63 112
 #   113. This parameter must be provided.
-#i2c_mcu: mcu
-#   The name of the micro-controller that the SX1509 chip is connected
-#   to. The default is "mcu".
+#i2c_mcu:
+#i2c_bus:
+#i2c_speed:
+#   See the "common I2C settings" section for a description of the
+#   above parameters.
 #i2c_bus:
 #   If the I2C implementation of your micro-controller supports
 #   multiple I2C busses, you may specify the bus name here. The
@@ -3448,8 +3503,8 @@ monitoring pins. Be sure to define this config section above any
 config sections that use one these virtual pins.
 
 See the
-[generic-duet2-maestro.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/generic-duet2-maestro.cfg)
-file for an example.
+[generic-duet2-maestro.cfg](../config/generic-duet2-maestro.cfg) file
+for an example.
 
 ```
 [adc_scaled my_name]
@@ -3468,8 +3523,8 @@ vssa_pin:
 ## [replicape]
 
 Replicape support - see the [beaglebone guide](beaglebone.md) and the
-[generic-replicape.cfg](https://github.com/KevinOConnor/klipper/tree/master/config/generic-replicape.cfg)
-file for an example.
+[generic-replicape.cfg](../config/generic-replicape.cfg) file for an
+example.
 
 ```
 # The "replicape" config section adds "replicape:stepper_x_enable"
@@ -3477,12 +3532,12 @@ file for an example.
 # "replicape:power_x" PWM output pins (for hotbed, e, h, fan0, fan1,
 # fan2, and fan3) that may then be used elsewhere in the config file.
 [replicape]
-revision: B3
+revision:
 #   The replicape hardware revision. Currently only revision "B3" is
 #   supported. This parameter must be provided.
 #enable_pin: !P9_41
 #   The replicape global enable pin. The default is !P9_41.
-host_mcu: host
+host_mcu:
 #   The name of the mcu config section that communicates with the
 #   Klipper "linux process" mcu instance. This parameter must be
 #   provided.
@@ -3528,4 +3583,50 @@ host_mcu: host
 #stepper_h_chopper_blank_time_high:
 #   This parameter controls the CFG5 pin of the stepper motor driver
 #   (True sets CFG5 high, False sets it low). The default is True.
+```
+
+# Common bus parameters
+
+## Common SPI settings
+
+The following parameters are generally available for devices using an
+SPI bus.
+
+```
+#spi_speed:
+#   The SPI speed (in hz) to use when communicating with the device.
+#   The default depends on the type of device.
+#spi_bus:
+#   If the micro-controller supports multiple SPI busses then one may
+#   specify the micro-controller bus name here. The default depends on
+#   the type of micro-controller.
+#spi_software_sclk_pin:
+#spi_software_mosi_pin:
+#spi_software_miso_pin:
+#   Specify the above parameters to use "software based SPI". This
+#   mode does not require micro-controller hardware support (typically
+#   any general purpose pins may be used). The default is to not use
+#   "software spi".
+```
+
+## Common I2C settings
+
+The following parameters are generally available for devices using an
+I2C bus.
+
+```
+#i2c_address:
+#   The i2c address of the device. This must specified as a decimal
+#   number (not in hex). The default depends on the type of device.
+#i2c_mcu:
+#   The name of the micro-controller that the chip is connected to.
+#   The default is "mcu".
+#i2c_bus:
+#   If the micro-controller supports multiple I2C busses then one may
+#   specify the micro-controller bus name here. The default depends on
+#   the type of micro-controller.
+#i2c_speed:
+#   The I2C speed (in Hz) to use when communicating with the device.
+#   On some micro-controllers changing this value has no effect. The
+#   default is 100000.
 ```
