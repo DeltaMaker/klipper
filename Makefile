@@ -8,6 +8,9 @@
 OUT=out/
 
 # Kconfig includes
+export HOSTCC             := $(CC)
+export CONFIG_SHELL       := sh
+export KCONFIG_AUTOHEADER := autoconf.h
 export KCONFIG_CONFIG     := $(CURDIR)/.config
 -include $(KCONFIG_CONFIG)
 
@@ -95,21 +98,22 @@ $(OUT)klipper.elf: $(OBJS_klipper.elf)
 
 ################ Kconfig rules
 
-$(OUT)autoconf.h: $(KCONFIG_CONFIG)
-	@echo "  Building $@"
-	$(Q)mkdir -p $(OUT)
-	$(Q) KCONFIG_AUTOHEADER=$@ $(PYTHON) lib/kconfiglib/genconfig.py src/Kconfig
+define do-kconfig
+$(Q)mkdir -p $(OUT)/scripts/kconfig/lxdialog
+$(Q)mkdir -p $(OUT)/include/config
+$(Q)$(MAKE) -C $(OUT) -f $(CURDIR)/scripts/kconfig/Makefile srctree=$(CURDIR) src=scripts/kconfig obj=scripts/kconfig Q=$(Q) Kconfig=$(CURDIR)/src/Kconfig $1
+endef
 
-$(KCONFIG_CONFIG) olddefconfig: src/Kconfig
-	$(Q)$(PYTHON) lib/kconfiglib/olddefconfig.py src/Kconfig
+$(OUT)autoconf.h : $(KCONFIG_CONFIG) ; $(call do-kconfig, silentoldconfig)
+$(KCONFIG_CONFIG): src/Kconfig ; $(call do-kconfig, olddefconfig)
+%onfig: ; $(call do-kconfig, $@)
+help: ; $(call do-kconfig, $@)
 
-menuconfig:
-	$(Q)$(PYTHON) lib/kconfiglib/menuconfig.py src/Kconfig
 
 ################ Generic rules
 
 # Make definitions
-.PHONY : all clean distclean olddefconfig menuconfig FORCE
+.PHONY : all clean distclean FORCE
 .DELETE_ON_ERROR:
 
 all: $(target-y)

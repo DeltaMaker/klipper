@@ -23,7 +23,6 @@ class ControllerFan:
         self.idle_timeout = config.getint("idle_timeout", default=30, minval=0)
         self.heater_name = config.get("heater", "extruder")
         self.last_on = self.idle_timeout
-        self.last_speed = 0.
     def handle_ready(self):
         pheaters = self.printer.lookup_object('heaters')
         self.heaters = [pheaters.lookup_heater(n.strip())
@@ -31,11 +30,9 @@ class ControllerFan:
         kin = self.printer.lookup_object('toolhead').get_kinematics()
         self.stepper_names = [s.get_name() for s in kin.get_steppers()]
         reactor = self.printer.get_reactor()
-        reactor.register_timer(self.callback, reactor.monotonic()+PIN_MIN_TIME)
-    def get_status(self, eventtime):
-        return self.fan.get_status(eventtime)
+        reactor.register_timer(self.callback, reactor.NOW)
     def callback(self, eventtime):
-        speed = 0.
+        power = 0.
         active = False
         for name in self.stepper_names:
             active |= self.stepper_enable.lookup_enable(name).is_motor_enabled()
@@ -45,15 +42,12 @@ class ControllerFan:
                 active = True
         if active:
             self.last_on = 0
-            speed = self.fan_speed
+            power = self.fan_speed
         elif self.last_on < self.idle_timeout:
-            speed = self.idle_speed
+            power = self.idle_speed
             self.last_on += 1
-        if speed != self.last_speed:
-            self.last_speed = speed
-            curtime = self.printer.get_reactor().monotonic()
-            print_time = self.fan.get_mcu().estimated_print_time(curtime)
-            self.fan.set_speed(print_time + PIN_MIN_TIME, speed)
+        print_time = self.fan.get_mcu().estimated_print_time(eventtime)
+        self.fan.set_speed(print_time + PIN_MIN_TIME, power)
         return eventtime + 1.
 
 def load_config_prefix(config):
