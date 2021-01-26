@@ -95,10 +95,9 @@ class HTU21D:
         self.temp = self.min_temp = self.max_temp = self.humidity = 0.
         self.sample_timer = self.reactor.register_timer(self._sample_htu21d)
         self.printer.add_object("htu21d " + self.name, self)
-        self.printer.register_event_handler("klippy:connect",
-                                            self.handle_connect)
+        self.printer.register_event_handler("klippy:ready", self.handle_ready)
 
-    def handle_connect(self):
+    def handle_ready(self):
         self._init_htu21d()
         self.reactor.update_timer(self.sample_timer, self.reactor.NOW)
 

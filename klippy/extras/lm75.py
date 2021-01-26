@@ -34,10 +34,9 @@ class LM75:
         self.temp = self.min_temp = self.max_temp = 0.0
         self.sample_timer = self.reactor.register_timer(self._sample_lm75)
         self.printer.add_object("lm75 " + self.name, self)
-        self.printer.register_event_handler("klippy:connect",
-                                            self.handle_connect)
+        self.printer.register_event_handler("klippy:ready", self.handle_ready)
 
-    def handle_connect(self):
+    def handle_ready(self):
         self._init_lm75()
         self.reactor.update_timer(self.sample_timer, self.reactor.NOW)
 

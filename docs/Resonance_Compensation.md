@@ -5,7 +5,8 @@ Klipper supports Input Shaping - a technique that can be used to reduce ringing
 printing defect when, typically, elements like edges repeat themselves on a
 printed surface as a subtle 'echo':
 
-|![Ringing test](img/ringing-test.jpg)|![3D Benchy](img/ringing-3dbenchy.jpg)|
+|![Ringing test](img/ringing-test.jpg) |![3D Benchy](img/ringing-3dbenchy.jpg) |
+|:--:|:--:|
 
 Ringing is caused by mechanical vibrations in the printer due to quick changes
 of the printing direction. Note that ringing usually has mechanical origins:
@@ -78,6 +79,7 @@ First, measure the **ringing frequency**.
    distance between the marks with a ruler or calipers:
 
     |![Mark ringing](img/ringing-mark.jpg)|![Measure ringing](img/ringing-measure.jpg)|
+    |:--:|:--:|
 
 10. Count how many oscillations *N* the measured distance *D* corresponds to.
     If you are unsure how to count the oscillations, refer to the picture
