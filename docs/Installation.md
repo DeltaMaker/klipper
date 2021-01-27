@@ -29,7 +29,7 @@ ssh utility to connect to the Raspberry Pi (ssh pi@octopi -- password
 is "raspberry") and run the following commands:
 
 ```
-git clone https://github.com/DeltaMaker/klipper
+git clone https://github.com/KevinOConnor/klipper
 ./klipper/scripts/install-octopi.sh
 ```
 
@@ -126,7 +126,7 @@ Configuring Klipper
 
 The Klipper configuration is stored in a text file on the Raspberry
 Pi. Take a look at the example config files in the
-[config directory](https://github.com/DeltaMaker/klipper/tree/master/config/). The
+[config directory](../config/). The
 [config reference](Config_Reference.md) contains documentation on
 config parameters.
 
