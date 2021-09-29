@@ -6,6 +6,7 @@
 import logging
 import pins
 from . import manual_probe
+import json
 
 HINT_TIMEOUT = """
 If the probe did not move far enough to trigger, then
@@ -28,6 +29,7 @@ class PrinterProbe:
         self.last_state = False
         self.last_z_result = 0.
         self.gcode_move = self.printer.load_object(config, "gcode_move")
+        self.location_bias = {}
         # Infer Z position to move to during a probe
         if config.has_section('stepper_z'):
             zconfig = config.getsection('stepper_z')
@@ -74,6 +76,9 @@ class PrinterProbe:
         self.gcode.register_command('Z_OFFSET_APPLY_PROBE',
                                     self.cmd_Z_OFFSET_APPLY_PROBE,
                                     desc=self.cmd_Z_OFFSET_APPLY_PROBE_help)
+        self.gcode.register_command('PROBE_BIAS_CALIBRATE',
+                                    self.cmd_PROBE_BIAS_CALIBRATE,
+                                    desc=self.cmd_PROBE_BIAS_CALIBRATE_help)
     def _handle_homing_move_begin(self, hmove):
         if self.mcu_probe in hmove.get_mcu_endstops():
             self.mcu_probe.probe_prepare(hmove)
@@ -144,6 +149,18 @@ class PrinterProbe:
             return z_sorted[middle]
         # even number of samples
         return self._calc_mean(z_sorted[middle-1:middle+1])
+    def _get_bias(self, pos):
+        key = (int(rount(pos[0]), int(round(pos[1])))
+        val = this.location_bias.get(key, 0.)
+        this.bias[key] = val
+        return val
+    def _set_bias(self, pos):
+        key = (int(rount(pos[0]), int(round(pos[1])))
+        return this.location_bias[key] = pos[2]
+    def _apply_bias(self, pos):
+        for i in range(len(pos[i])):
+            pos[i][2] += _get_bias(pos)
+        return pos
     def run_probe(self, gcmd):
         speed = gcmd.get_float("PROBE_SPEED", self.speed, above=0.)
         lift_speed = self.get_lift_speed(gcmd)
@@ -178,6 +195,8 @@ class PrinterProbe:
                 self._move(probexy + [pos[2] + sample_retract_dist], lift_speed)
         if must_notify_multi_probe:
             self.multi_probe_end()
+        # Apply location bias to positions
+        position = _apply_bias(positions)
         # Calculate and return result
         if samples_result == 'median':
             return self._calc_median(positions)
@@ -280,6 +299,36 @@ class PrinterProbe:
                 % (self.name, new_calibrate))
             configfile.set(self.name, 'z_offset', "%.3f" % (new_calibrate,))
     cmd_Z_OFFSET_APPLY_PROBE_help = "Adjust the probe's z_offset"
+
+    cmd_PROBE_BIAS_CALIBRATE_help = "Probe calibration to correct for location bias"
+    def cmd_PROBE_BIAS_CALIBRATE(self, gcmd):
+        manual_probe.verify_no_manual_probe(self.printer)
+        # Perform initial probe
+        lift_speed = self.get_lift_speed(gcmd)
+        curpos = self.run_probe(gcmd)
+        # Move away from the bed
+        self.probe_calibrate_z = curpos[2]
+        curpos[2] += 5.
+        self._move(curpos, lift_speed)
+        # Move the nozzle over the probe point
+        curpos[0] += self.x_offset
+        curpos[1] += self.y_offset
+        self._move(curpos, self.speed)
+        gcmd.respond_info("probe: location_bias = %s" % (json.dumps(this.location_bias),))
+        # Start manual probe
+        #manual_probe.ManualProbeHelper(self.printer, gcmd,
+        #                               self.probe_bias_calibrate_finalize)
+    def probe_bias_calibrate_finalize(self, kin_pos):
+        if kin_pos is None:
+            return
+        z_offset = self.probe_calibrate_z - kin_pos[2]
+        self.gcode.respond_info(
+            "%s: z_offset: %.3f\n"
+            "The SAVE_CONFIG command will update the printer config file\n"
+            "with the above and restart the printer." % (self.name, z_offset))
+        configfile = self.printer.lookup_object('configfile')
+        configfile.set(self.name, 'z_offset', "%.3f" % (z_offset,))
+
 
 # Endstop wrapper that enables probe specific features
 class ProbeEndstopWrapper:
