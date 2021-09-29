@@ -3,10 +3,10 @@
 # Copyright (C) 2017-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+import json
 import logging
 import pins
 from . import manual_probe
-import json
 
 HINT_TIMEOUT = """
 If the probe did not move far enough to trigger, then
@@ -29,7 +29,7 @@ class PrinterProbe:
         self.last_state = False
         self.last_z_result = 0.
         self.gcode_move = self.printer.load_object(config, "gcode_move")
-        self.location_bias = {}
+        self.location_bias = dict()
         # Infer Z position to move to during a probe
         if config.has_section('stepper_z'):
             zconfig = config.getsection('stepper_z')
@@ -150,16 +150,16 @@ class PrinterProbe:
         # even number of samples
         return self._calc_mean(z_sorted[middle-1:middle+1])
     def _get_bias(self, pos):
-        key = (int(rount(pos[0]), int(round(pos[1])))
-        val = this.location_bias.get(key, 0.)
-        this.bias[key] = val
+        key = (int(round(pos[0])), int(round(pos[1])))
+        val = self.location_bias.get(key, 0.)
+        self.location_bias[key] = val
         return val
     def _set_bias(self, pos):
-        key = (int(rount(pos[0]), int(round(pos[1])))
-        return this.location_bias[key] = pos[2]
+        key = (int(round(pos[0])), int(round(pos[1])))
+        self.location_bias[key] = pos[2]
     def _apply_bias(self, pos):
-        for i in range(len(pos[i])):
-            pos[i][2] += _get_bias(pos)
+        for i in range(len(pos)):
+            pos[i][2] += self._get_bias(pos[i])
         return pos
     def run_probe(self, gcmd):
         speed = gcmd.get_float("PROBE_SPEED", self.speed, above=0.)
@@ -196,7 +196,7 @@ class PrinterProbe:
         if must_notify_multi_probe:
             self.multi_probe_end()
         # Apply location bias to positions
-        position = _apply_bias(positions)
+        positions = self._apply_bias(positions)
         # Calculate and return result
         if samples_result == 'median':
             return self._calc_median(positions)
@@ -303,18 +303,25 @@ class PrinterProbe:
     cmd_PROBE_BIAS_CALIBRATE_help = "Probe calibration to correct for location bias"
     def cmd_PROBE_BIAS_CALIBRATE(self, gcmd):
         manual_probe.verify_no_manual_probe(self.printer)
-        # Perform initial probe
+
         lift_speed = self.get_lift_speed(gcmd)
-        curpos = self.run_probe(gcmd)
+        for key,val in self.location_bias.items():
+            gcmd.respond_info("bias key = (%d, %d)" % tuple(key)) 
+            gcmd.respond_info("bias z = %.6f" % (val,))
+            #pos = [float(key[0], float(key[1]), 20.0]
+            #self._move(pos, lift_speed)
+            #gcmd.respond_info("probe: %.3f %.3f %.6f" % (pos[0], pos[1], val))
+        # Perform initial probe
+        #lift_speed = self.get_lift_speed(gcmd)
+        #curpos = self.run_probe(gcmd)
         # Move away from the bed
-        self.probe_calibrate_z = curpos[2]
-        curpos[2] += 5.
-        self._move(curpos, lift_speed)
+        #self.probe_calibrate_z = curpos[2]
+        #curpos[2] += 5.
+        #self._move(curpos, lift_speed)
         # Move the nozzle over the probe point
-        curpos[0] += self.x_offset
-        curpos[1] += self.y_offset
-        self._move(curpos, self.speed)
-        gcmd.respond_info("probe: location_bias = %s" % (json.dumps(this.location_bias),))
+        #curpos[0] += self.x_offset
+        #curpos[1] += self.y_offset
+        #self._move(curpos, self.speed)
         # Start manual probe
         #manual_probe.ManualProbeHelper(self.printer, gcmd,
         #                               self.probe_bias_calibrate_finalize)
