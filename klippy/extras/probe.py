@@ -488,8 +488,9 @@ class LocationBiasHelper:
     def _pop_hist(self, i):
         return self.probe_history.pop(i)
     def _get_bias(self, pos):
+        p = (pos[0] + self.probe.x_offset, pos[1] + self.probe.y_offset)
         for pt in self.location_bias:
-            if self._bias_key(pt) == self._bias_key(pos):
+            if self._bias_key(pt) == self._bias_key(p):
                 return pt[2]
         return 0.
         #return self.location_bias.get(self._bias_key(pos), 0.)
@@ -505,11 +506,14 @@ class LocationBiasHelper:
     def apply_correction(self, pos):
         self._add_hist(pos)
         pos[2] += self._get_bias(pos)
+        self.gcode.respond_info("apply_correction: bias = %.3f (%.2f, %.2f, %.4f)"
+                                 % (self._get_bias(pos), pos[0], pos[1], pos[2]))
         return pos
     def _move_hist(self, i):
         if self._len_hist() > i:
             # Move to the specified point in probe_hist
             pos = self._peek_hist(i)
+            z0 = pos[2] - self.probe.z_offset
             # Apply probe offset
             pos[0] += self.probe.x_offset
             pos[1] += self.probe.y_offset
@@ -517,7 +521,7 @@ class LocationBiasHelper:
             pos[2] += 10
             self.probe._move(pos, 2 * self.probe.lift_speed)
             # slowly lower nozzle to bed
-            pos[2] = 0.
+            pos[2] = z0
             self.probe._move(pos, self.probe.speed)
             self.z_origin = self.probe.gcode_move.get_status()['homing_origin'].z
         #self.gcode.respond_info("_move_hist: %.2f, %.2f, %.4f" % tuple(pos))
@@ -573,14 +577,14 @@ class LocationBiasHelper:
     def cmd_NEXT_PROBE_POINT(self, gcmd):
         pos = self.toolhead.get_position()
         new_z = self.probe.gcode_move.get_status()['homing_origin'].z
-        dz = self.z_homing - new_z
+        dz = new_z - self.z_homing
         pos[2] = self._get_bias(pos) + dz
         self._set_bias(pos)
         gcmd.respond_info("bias: offset = %.3f, z_homing = %.3f" % (pos[2],self.z_homing))
         # Move away from the bed
         pos[2] += 10
         self.probe._move(pos, self.probe.lift_speed)
-
+        self.z_homing = new_z
         # remove current location from history
         self._pop_hist(0)
         
