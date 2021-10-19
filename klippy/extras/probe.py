@@ -452,7 +452,6 @@ class LocationBiasHelper:
         self.toolhead = None
         self.location_bias = ast.literal_eval(config.get('location_bias', "[]"))
         self.probe_history = []
-        #self.probe_history = ast.literal_eval(config.get('probe_history', "[]"))
         self.z_origin = 0.
         self.z_homing = 0.
         self.z_probe_base = 0.
@@ -467,6 +466,7 @@ class LocationBiasHelper:
         return (int(float(pos[0])), int(float(pos[1])))
     def _multiline(self, aList):
         s = ""
+        if not aList: return "[]"
         for i in range(len(aList)):
             s += "%s, " % (aList[i],)
             if (i+1) % 3 == 0 and i+1 < len(aList):
@@ -478,9 +478,6 @@ class LocationBiasHelper:
             if self._bias_key(pt) == p:
                 return
         self.probe_history.append([p[0],p[1],round(pos[2],3)])
-        #configfile = self.printer.lookup_object('configfile')
-        #configfile.set(self.probe.name, 'probe_history', self._multiline(self.probe_history))
-
     def _len_hist(self):
         return len(self.probe_history)
     def _peek_hist(self, i):
@@ -488,9 +485,10 @@ class LocationBiasHelper:
     def _pop_hist(self, i):
         return self.probe_history.pop(i)
     def _get_bias(self, pos):
-        p = (pos[0] + self.probe.x_offset, pos[1] + self.probe.y_offset)
+        #p = (pos[0] + self.probe.x_offset, pos[1] + self.probe.y_offset)
         for pt in self.location_bias:
-            if self._bias_key(pt) == self._bias_key(p):
+            #if self._bias_key(pt) == self._bias_key(p):
+            if (pos[0]-pt[0])**2 + (pos[1]-pt[1])**2 < 2:
                 return pt[2]
         return 0.
         #return self.location_bias.get(self._bias_key(pos), 0.)
@@ -499,7 +497,8 @@ class LocationBiasHelper:
         pos[2] = round(pos[2],3)
         self.gcode.respond_info("set_bias: (%d, %d, %.3f)" % (pos[0], pos[1], pos[2]))
         for pt in self.location_bias:
-            if self._bias_key(pt) == self._bias_key(pos):
+            #if self._bias_key(pt) == self._bias_key(pos):
+            if (pos[0]-pt[0])**2 + (pos[1]-pt[1])**2 < 2:
                 self.location_bias.remove(pt)
         self.location_bias.append(tuple(pos[:3]))
         #self.location_bias[self_.bias_key(pos)] = pos[2]
