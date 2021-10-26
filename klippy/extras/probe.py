@@ -455,6 +455,7 @@ class LocationBiasHelper:
         self.z_origin = 0.
         self.z_homing = 0.
         self.z_probe_base = 0.
+        self.z_start = 0.
         self.gcode.register_command('PROBE_BIAS_CALIBRATE',
                                     self.cmd_PROBE_BIAS_CALIBRATE,
                                     desc=self.cmd_PROBE_BIAS_CALIBRATE_help)
@@ -481,7 +482,10 @@ class LocationBiasHelper:
     def _len_hist(self):
         return len(self.probe_history)
     def _peek_hist(self, i):
-        return self.probe_history[i]
+        p = self.probe_history[i]
+        self.gcode.respond_info("peek_hist: %d: (%d, %d, %.3f)" % (i, p[0], p[1], p[2]))
+        return [p[0],p[1],p[2]]
+        #return self.probe_history[i]
     def _pop_hist(self, i):
         return self.probe_history.pop(i)
     def _get_bias(self, pos):
@@ -505,26 +509,29 @@ class LocationBiasHelper:
     def apply_correction(self, pos):
         self._add_hist(pos)
         pos[2] += self._get_bias(pos)
+        #pos[2] -= self._get_bias(pos)
         self.gcode.respond_info("apply_correction: bias = %.3f (%.2f, %.2f, %.4f)"
                                  % (self._get_bias(pos), pos[0], pos[1], pos[2]))
         return pos
     def _move_hist(self, i):
-        if self._len_hist() > i:
-            # Move to the specified point in probe_hist
-            pos = self._peek_hist(i)
-            z0 = pos[2] - self.probe.z_offset
-            # Apply probe offset
-            pos[0] += self.probe.x_offset
-            pos[1] += self.probe.y_offset
-            # Horizontal move to above probe point
-            pos[2] += 10
-            self.probe._move(pos, 2 * self.probe.lift_speed)
-            # slowly lower nozzle to bed
-            pos[2] = z0
-            self.probe._move(pos, self.probe.speed)
-            self.z_origin = self.probe.gcode_move.get_status()['homing_origin'].z
+        if i >= self._len_hist():
+            return self._len_hist(), 0
+        # Move to the specified point in probe_hist
+        pos = self._peek_hist(i)
+        z0 = pos[2] - self.probe.z_offset
+        #z0 = pos[2]
+        # Apply probe offset
+        pos[0] += self.probe.x_offset
+        pos[1] += self.probe.y_offset
+        # Horizontal move to above probe point
+        pos[2] += 10
+        self.probe._move(pos, 2 * self.probe.lift_speed)
+        # slowly lower nozzle to bed
+        pos[2] = z0
+        self.probe._move(pos, self.probe.speed)
+        self.z_origin = self.probe.gcode_move.get_status()['homing_origin'].z
         #self.gcode.respond_info("_move_hist: %.2f, %.2f, %.4f" % tuple(pos))
-        return self._len_hist()
+        return self._len_hist(), pos
     def _next_hist():
         # remove current location from history and move to next
         self._pop_hist(0)
@@ -542,16 +549,18 @@ class LocationBiasHelper:
         self.z_homing = self.probe.gcode_move.get_status()['homing_origin'].z
         ## initialize the probe_history by performing automated bed probing prior to this command
         mid = int(self._len_hist() / 2)
-        remaining = self._move_hist(0)
+        remaining, pos = self._move_hist(0)
         if not remaining:
             self.gcode.respond_info("Perform automated bed probing before calibrating for location bias.")
         else:
             gcmd.respond_info("Confirm nozzle height of each probe location (%d remaining)" % (remaining,))
             gcmd.respond_info('Use "SET_GCODE_OFFSET Z_ADJUST" to adjust nozzle height.')
             gcmd.respond_info('Use "NEXT" to go to the next probe location.')
-            pos = self._peek_hist(0)
+            #pos = self._peek_hist(0)
+            self.z_start = self.toolhead.get_position()[2]
             #self.start_pos = self.toolhead.get_position()
             gcmd.respond_info("history location: %.2f, %.2f, %.4f" % tuple(pos))
+            gcmd.respond_info("z_start = %.2f" % (self.z_start,))
             ## wait for user the adjust nozzle height using SET_GCODE_OFFSET (babystepping),
             ##  and perform NEXT_PROBE_POINT command:
             self.gcode.register_command('NEXT', None)
@@ -573,10 +582,14 @@ class LocationBiasHelper:
 
     cmd_NEXT_PROBE_POINT_help = "Store location bias and move to next calibration point"
     def cmd_NEXT_PROBE_POINT(self, gcmd):
-        pos = self.toolhead.get_position()
+        z_end = self.toolhead.get_position()[2]
+        self.gcode.respond_info("z_end = %.3f" % (z_end, ))
+        pos = self._peek_hist(0)
         new_z = self.probe.gcode_move.get_status()['homing_origin'].z
+        #self.gcode.respond_info("new_z = %.3f" % (new_z, ))
         dz = new_z - self.z_homing
-        pos[2] = self._get_bias(pos) + dz
+        pos[2] = self._get_bias(pos) - dz
+        self.gcode.respond_info("new_z = %.3f, dz = %.3f" % (new_z, dz))
         self._set_bias(pos)
         gcmd.respond_info("bias: offset = %.3f, z_homing = %.3f" % (pos[2],self.z_homing))
         # Move away from the bed
@@ -587,7 +600,7 @@ class LocationBiasHelper:
         self._pop_hist(0)
 
         # move to next location
-        remaining = self._move_hist(0)
+        remaining, pos = self._move_hist(0)
         if remaining:
             gcmd.respond_info("next location: %.3f, %.3f, %.3f (%d remaining)" % (pos[0], pos[1], pos[2], remaining))
         else:
@@ -597,3 +610,4 @@ class LocationBiasHelper:
 
 def load_config(config):
     return PrinterProbe(config, ProbeEndstopWrapper(config))
+
