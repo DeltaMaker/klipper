@@ -451,7 +451,7 @@ class LocationBiasHelper:
         self.gcode = self.printer.lookup_object('gcode')
         self.toolhead = None
         self.location_bias = ast.literal_eval(config.get('location_bias', "[]"))
-        self.probe_history = []
+        self.probe_history = ast.literal_eval(config.get('probe_history', "[]"))
         self.z_origin = 0.
         self.z_homing = 0.
         self.z_start = 0.
