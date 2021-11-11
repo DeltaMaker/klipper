@@ -2,7 +2,7 @@
 # This script copies the deltamaker printer config and octoprint config files to
 #  the required locations
 #
-dm_cfg="2t"
+dm_cfg="pro"
 printer_cfg="/home/pi/printer.cfg"
 config_yaml="/home/pi/.octoprint/config.yaml"
 
