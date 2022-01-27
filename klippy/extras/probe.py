@@ -451,7 +451,7 @@ class LocationBiasHelper:
         return len(self.probe_history)
     def _peek_hist(self, i):
         p = self.probe_history[i]
-        self.gcode.respond_info("peek_hist: %d: (%d, %d, %.3f)" % (i, p[0], p[1], p[2]))
+        ##self.gcode.respond_info("peek_hist: %d: (%d, %d, %.3f)" % (i, p[0], p[1], p[2]))
         return [p[0],p[1],p[2]]
         #return self.probe_history[i]
     def _rot_hist(self, i):
@@ -471,7 +471,7 @@ class LocationBiasHelper:
     def _set_bias(self, pos):
         pos[:2] = self._bias_key(pos)[:2]
         pos[2] = round(pos[2],3)
-        self.gcode.respond_info("set_bias: (%d, %d, %.3f)" % (pos[0], pos[1], pos[2]))
+        ##self.gcode.respond_info("set_bias: (%d, %d, %.3f)" % (pos[0], pos[1], pos[2]))
         for pt in self.location_bias:
             #if self._bias_key(pt) == self._bias_key(pos):
             if (pos[0]-pt[0])**2 + (pos[1]-pt[1])**2 < 2:
@@ -481,8 +481,7 @@ class LocationBiasHelper:
     def apply_correction(self, pos):
         self._add_hist(pos)
         pos[2] += self._get_bias(pos)
-        #pos[2] -= self._get_bias(pos)
-        self.gcode.respond_info("apply_correction: bias = %.3f" % (self._get_bias(pos), ))
+        self.gcode.respond_info("bc = %.3f" % (self._get_bias(pos), ))
         return pos
     def _move_hist(self, i):
         if i >= self._len_hist():
@@ -527,14 +526,13 @@ class LocationBiasHelper:
         if not remaining:
             self.gcode.respond_info("Perform automated bed probing before calibrating for location bias.")
         else:
-            gcmd.respond_info("Confirm nozzle height of each probe location (%d remaining)" % (remaining,))
+            gcmd.respond_info("Confirm nozzle height of each probe location (%d points)" % (remaining,))
             gcmd.respond_info('Use "SET_GCODE_OFFSET Z_ADJUST" to adjust nozzle height.')
             gcmd.respond_info('Use "NEXT" to go to the next probe location.')
             #pos = self._peek_hist(0)
             self.z_start = self.toolhead.get_position()[2]
-            #self.start_pos = self.toolhead.get_position()
-            gcmd.respond_info("history location: %.2f, %.2f, %.4f" % tuple(pos))
-            gcmd.respond_info("z_start = %.2f" % (self.z_start,))
+            #gcmd.respond_info("history location: %.2f, %.2f, %.4f" % tuple(pos))
+            #gcmd.respond_info("z_start = %.2f" % (self.z_start,))
             ## wait for user the adjust nozzle height using SET_GCODE_OFFSET (babystepping),
             ##  and perform NEXT_PROBE_POINT command:
             self.gcode.register_command('NEXT', None)
@@ -551,13 +549,13 @@ class LocationBiasHelper:
     cmd_NEXT_PROBE_POINT_help = "Store location bias and move to next calibration point"
     def cmd_NEXT_PROBE_POINT(self, gcmd):
         z_end = self.toolhead.get_position()[2]
-        self.gcode.respond_info("z_end = %.3f" % (z_end, ))
+        #self.gcode.respond_info("z_end = %.3f" % (z_end, ))
         pos = self._peek_hist(0)
         new_z = self.probe.gcode_move.get_status()['homing_origin'].z
         #self.gcode.respond_info("new_z = %.3f" % (new_z, ))
         dz = new_z - self.z_homing
         pos[2] = self._get_bias(pos) - dz
-        self.gcode.respond_info("new_z = %.3f, dz = %.3f" % (new_z, dz))
+        #self.gcode.respond_info("new_z = %.3f, dz = %.3f" % (new_z, dz))
         self._set_bias(pos)
         gcmd.respond_info("bias: offset = %.3f, z_homing = %.3f" % (pos[2],self.z_homing))
         # Move away from the bed
@@ -572,7 +570,7 @@ class LocationBiasHelper:
         # move to next location
         remaining, pos = self._move_hist(0)
         if remaining:
-            gcmd.respond_info("next location: %.3f, %.3f, %.3f (%d remaining)" % (pos[0], pos[1], pos[2], remaining))
+            gcmd.respond_info("next location: %.3f, %.3f, %.3f (%d points)" % (pos[0], pos[1], pos[2], remaining))
         else:
             self._save_bias()
             self.gcode.register_command('NEXT', None)
