@@ -181,10 +181,14 @@ class PrinterProbe:
                 self._move(liftpos, lift_speed)
         if must_notify_multi_probe:
             self.multi_probe_end()
-        # Calculate and return result (applying location bias correction)
+        # Calculate and return result
         if samples_result == 'median':
-            return self.bias.apply_correction( self._calc_median(positions) )
-        return self.bias.apply_correction( self._calc_mean(positions) )
+            result = self._calc_median(positions)
+        else:
+            result = self._calc_mean(positions)
+        #gcmd.respond_info("Result before correction: %s" % (result,)) 
+        # Apply location bias correction to result
+        return self.bias.apply_correction(result)
     cmd_PROBE_help = "Probe Z-height at current XY position"
     def cmd_PROBE(self, gcmd):
         pos = self.run_probe(gcmd)
@@ -497,7 +501,7 @@ class LocationBiasHelper:
         #self.location_bias[self_.bias_key(pos)] = pos[2]
     def apply_correction(self, pos):
         self._add_hist(pos)
-        pos[2] += self._get_bias(pos)
+        pos[2] -= self._get_bias(pos)
         self.gcode.respond_info("bc = %.3f" % (self._get_bias(pos), ))
         return pos
     def _move_hist(self, i):
@@ -506,7 +510,6 @@ class LocationBiasHelper:
         # Move to the specified point in probe_hist
         pos = self._peek_hist(i)
         z0 = pos[2] - self.probe.z_offset - self._get_bias(pos)
-        #z0 = pos[2]
         # Apply probe offset
         pos[0] += self.probe.x_offset
         pos[1] += self.probe.y_offset
@@ -562,6 +565,8 @@ class LocationBiasHelper:
     cmd_SAVE_LOCATION_BIAS_help = "Save and display probe location bias corrections"
     def cmd_SAVE_LOCATION_BIAS(self, gcmd):
         self._save_bias()
+        self.gcode.register_command('NEXT', None)
+        self.gcode.register_command('SAVE', None)
 
     cmd_NEXT_PROBE_POINT_help = "Store location bias and move to next calibration point"
     def cmd_NEXT_PROBE_POINT(self, gcmd):
