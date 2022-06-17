@@ -300,7 +300,7 @@ class GCodeRotateHelper:
             self.rot_position[1] = self.sin_angle * (position[0] - cx) + self.cos_angle * (position[1] - cy) + cy
             self.rot_position[2:] = position[2:]
             return self.rot_position
-        def cmd_G68(self, gcmd):
+    def cmd_G68(self, gcmd):
         # Set coordinate rotation origin point and angle in degrees
         for pos, axis in enumerate('XY'):
             self.rotate_origin[pos] = gcmd.get_float(axis, 0.)
