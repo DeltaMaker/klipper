@@ -1154,9 +1154,9 @@ home_xy_position:
 #   than z_hop, then this will lift the head to a height of z_hop. If
 #   the Z axis is not already homed the head is lifted by z_hop.
 #   The default is to not implement Z hop.
-#z_hop_speed: 20.0
+#z_hop_speed: 15.0
 #   Speed (in mm/s) at which the Z axis is lifted prior to homing. The
-#   default is 20mm/s.
+#   default is 15 mm/s.
 #move_to_previous: False
 #   When set to True, the X and Y axes are reset to their previous
 #   positions after Z axis homing. The default is False.
@@ -1334,6 +1334,9 @@ path:
 #   are not supported). One may point this to OctoPrint's upload
 #   directory (generally ~/.octoprint/uploads/ ). This parameter must
 #   be provided.
+#on_error_gcode:
+#   A list of G-Code commands to execute when an error is reported.
+
 ```
 
 ### [sdcard_loop]
@@ -1430,6 +1433,20 @@ Enable the "M118" and "RESPOND" extended
 #default_prefix: echo:
 #   Directly sets the default prefix. If present, this value will
 #   override the "default_type".
+```
+
+### [exclude_object]
+Enables support to exclude or cancel individual objects during the printing
+process.
+
+See the [exclude objects guide](Exclude_Object.md) and
+[command reference](G-Codes.md#excludeobject)
+for additional information. See the
+[sample-macros.cfg](../config/sample-macros.cfg) file for a
+Marlin/RepRapFirmware compatible M486 G-Code macro.
+
+```
+[exclude_object]
 ```
 
 ## Resonance compensation
@@ -4182,6 +4199,13 @@ SPI bus.
 The following parameters are generally available for devices using an
 I2C bus.
 
+Note that Klipper's current micro-controller support for i2c is
+generally not tolerant to line noise. Unexpected errors on the i2c
+wires may result in Klipper raising a run-time error. Klipper's
+support for error recovery varies between each micro-controller type.
+It is generally recommended to only use i2c devices that are on the
+same printed circuit board as the micro-controller.
+
 ```
 #i2c_address:
 #   The i2c address of the device. This must specified as a decimal
@@ -4195,6 +4219,7 @@ I2C bus.
 #   the type of micro-controller.
 #i2c_speed:
 #   The I2C speed (in Hz) to use when communicating with the device.
-#   On some micro-controllers changing this value has no effect. The
-#   default is 100000.
+#   The Klipper implementation on most micro-controllers is hard-coded
+#   to 100000 and changing this value has no effect. The default is
+#   100000.
 ```
