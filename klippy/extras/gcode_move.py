@@ -3,7 +3,7 @@
 # Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import logging
+import logging, math
 
 class GCodeMove:
     def __init__(self, config):
@@ -47,7 +47,9 @@ class GCodeMove:
         self.extrude_factor = 1.
         self.rotate_coord = False
         self.rotate_origin = [0.0, 0.0]
-        self.rotate_angle = 0.
+        self.rot_position = [0.0, 0.0, 0.0, 0.0]
+        self.sin_angle = 0.
+        self.cos_angle = 1.
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
@@ -108,12 +110,18 @@ class GCodeMove:
             'homing_origin': self.Coord(*self.homing_position),
             'position': self.Coord(*self.last_position),
             'gcode_position': self.Coord(*move_position),
-            'rotation_origin': self.Coord(*rotate_origin),
-            'rotation_angle': self.rotate_angle,
+            'rotate_coord': self.rotate_coord,
         }
     def reset_last_position(self):
         if self.is_printer_ready:
             self.last_position = self.position_with_transform()
+    def rotate_2D(self, position):
+        cx = self.rotate_origin[0] + self.base_position[0]
+        cy = self.rotate_origin[1] + self.base_position[1]
+        self.rot_position[0] = self.cos_angle * (position[0] - cx) - self.sin_angle * (position[1] - cy) + cx
+        self.rot_position[1] = self.sin_angle * (position[0] - cx) + self.cos_angle * (position[1] - cy) + cy
+        self.rot_position[2:] = position[2:]
+        return self.rot_position
     # G-Code movement commands
     def cmd_G1(self, gcmd):
         # Move
@@ -145,7 +153,10 @@ class GCodeMove:
         except ValueError as e:
             raise gcmd.error("Unable to parse move '%s'"
                              % (gcmd.get_commandline(),))
-        self.move_with_transform(self.last_position, self.speed)
+        if not self.rotate_coord:
+            self.move_with_transform(self.last_position, self.speed)
+        else:
+            self.move_with_transform(self.rotate_2D(self.last_position), self.speed)
     # G-Code coordinate manipulation
     def cmd_G20(self, gcmd):
         # Set units to inches
@@ -157,7 +168,9 @@ class GCodeMove:
         # Set coordinate rotation origin point and angle in degrees
         for pos, axis in enumerate('XY'):
             self.rotate_origin[pos] = gcmd.get_float(axis, 0.)
-        self.rotate_angle = gcmd.get_float('R', 0., above=-360., below=360.)
+        angle = gcmd.get_float('R', 0., above=-360., below=360.)
+        self.sin_angle = math.sin(math.radians(angle))
+        self.cos_angle = math.cos(math.radians(angle))
         self.rotate_coord = True
     def cmd_G69(self, gcmd):
         # Cancel coordinate rotation
