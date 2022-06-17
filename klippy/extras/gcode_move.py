@@ -24,7 +24,7 @@ class GCodeMove:
         # Register g-code commands
         gcode = printer.lookup_object('gcode')
         handlers = [
-            'G1', 'G20', 'G21', 'G68', 'G69',
+            'G1', 'G20', 'G21',
             'M82', 'M83', 'G90', 'G91', 'G92', 'M220', 'M221',
             'SET_GCODE_OFFSET', 'SAVE_GCODE_STATE', 'RESTORE_GCODE_STATE',
         ]
@@ -45,11 +45,7 @@ class GCodeMove:
         self.speed = 25.
         self.speed_factor = 1. / 60.
         self.extrude_factor = 1.
-        self.rotate_coord = False
-        self.rotate_origin = [0.0, 0.0]
-        self.rot_position = [0.0, 0.0, 0.0, 0.0]
-        self.sin_angle = 0.
-        self.cos_angle = 1.
+        self.G68_helper = GCodeRotateHelper(config, self)
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
@@ -110,18 +106,10 @@ class GCodeMove:
             'homing_origin': self.Coord(*self.homing_position),
             'position': self.Coord(*self.last_position),
             'gcode_position': self.Coord(*move_position),
-            'rotate_coord': self.rotate_coord,
         }
     def reset_last_position(self):
         if self.is_printer_ready:
             self.last_position = self.position_with_transform()
-    def rotate_2D(self, position):
-        cx = self.rotate_origin[0] + self.base_position[0]
-        cy = self.rotate_origin[1] + self.base_position[1]
-        self.rot_position[0] = self.cos_angle * (position[0] - cx) - self.sin_angle * (position[1] - cy) + cx
-        self.rot_position[1] = self.sin_angle * (position[0] - cx) + self.cos_angle * (position[1] - cy) + cy
-        self.rot_position[2:] = position[2:]
-        return self.rot_position
     # G-Code movement commands
     def cmd_G1(self, gcmd):
         # Move
@@ -153,10 +141,7 @@ class GCodeMove:
         except ValueError as e:
             raise gcmd.error("Unable to parse move '%s'"
                              % (gcmd.get_commandline(),))
-        if not self.rotate_coord:
-            self.move_with_transform(self.last_position, self.speed)
-        else:
-            self.move_with_transform(self.rotate_2D(self.last_position), self.speed)
+        self.move_with_transform(self.G68_helper.rotate(self.last_position), self.speed)
     # G-Code coordinate manipulation
     def cmd_G20(self, gcmd):
         # Set units to inches
@@ -164,17 +149,6 @@ class GCodeMove:
     def cmd_G21(self, gcmd):
         # Set units to millimeters
         pass
-    def cmd_G68(self, gcmd):
-        # Set coordinate rotation origin point and angle in degrees
-        for pos, axis in enumerate('XY'):
-            self.rotate_origin[pos] = gcmd.get_float(axis, 0.)
-        angle = gcmd.get_float('R', 0., above=-360., below=360.)
-        self.sin_angle = math.sin(math.radians(angle))
-        self.cos_angle = math.cos(math.radians(angle))
-        self.rotate_coord = True
-    def cmd_G69(self, gcmd):
-        # Cancel coordinate rotation
-        self.rotate_coord = False
     def cmd_M82(self, gcmd):
         # Use absolute distances for extrusion
         self.absolute_extrude = True
@@ -298,6 +272,45 @@ class GCodeMove:
                           "gcode homing: %s"
                           % (mcu_pos, stepper_pos, kin_pos, toolhead_pos,
                              gcode_pos, base_pos, homing_pos))
+
+# Helper class to implement coordinate rotation gcodes G68 and G69
+class GCodeRotateHelper:
+    def __init__(self, config, gcode_move):
+        self.printer = printer = config.get_printer()
+        self.gcode_move = gcode_move
+        # Register g-code commands
+        gcode = printer.lookup_object('gcode')
+        gcode.register_command('G68', self.cmd_G68)
+        gcode.register_command('G69', self.cmd_G69)
+        # coordinate rotation state
+        self.rotate_coord = False
+        self.rotate_origin = [0.0, 0.0]
+        self.angle = 0.
+        self.sin_angle = 0.
+        self.cos_angle = 1.
+        self.rot_position = [0.0, 0.0, 0.0, 0.0]
+    # G-Code coordinate rotation
+    def rotate(self, position):
+        if not self.rotate_coord:
+            return position
+        else:
+            cx = self.rotate_origin[0] + self.gcode_move.base_position[0]
+            cy = self.rotate_origin[1] + self.gcode_move.base_position[1]
+            self.rot_position[0] = self.cos_angle * (position[0] - cx) - self.sin_angle * (position[1] - cy) + cx
+            self.rot_position[1] = self.sin_angle * (position[0] - cx) + self.cos_angle * (position[1] - cy) + cy
+            self.rot_position[2:] = position[2:]
+            return self.rot_position
+        def cmd_G68(self, gcmd):
+        # Set coordinate rotation origin point and angle in degrees
+        for pos, axis in enumerate('XY'):
+            self.rotate_origin[pos] = gcmd.get_float(axis, 0.)
+        self.angle = gcmd.get_float('R', 0., above=-360., below=360.)
+        self.sin_angle = math.sin(math.radians(self.angle))
+        self.cos_angle = math.cos(math.radians(self.angle))
+        self.rotate_coord = True
+    def cmd_G69(self, gcmd):
+        # Cancel coordinate rotation
+        self.rotate_coord = False
 
 def load_config(config):
     return GCodeMove(config)
