@@ -24,7 +24,7 @@ class GCodeMove:
         # Register g-code commands
         gcode = printer.lookup_object('gcode')
         handlers = [
-            'G1', 'G20', 'G21',
+            'G1', 'G20', 'G21', 'G68', 'G69',
             'M82', 'M83', 'G90', 'G91', 'G92', 'M220', 'M221',
             'SET_GCODE_OFFSET', 'SAVE_GCODE_STATE', 'RESTORE_GCODE_STATE',
         ]
@@ -45,6 +45,9 @@ class GCodeMove:
         self.speed = 25.
         self.speed_factor = 1. / 60.
         self.extrude_factor = 1.
+        self.rotate_coord = False
+        self.rotate_origin = [0.0, 0.0]
+        self.rotate_angle = 0.
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
@@ -105,6 +108,8 @@ class GCodeMove:
             'homing_origin': self.Coord(*self.homing_position),
             'position': self.Coord(*self.last_position),
             'gcode_position': self.Coord(*move_position),
+            'rotation_origin': self.Coord(*rotate_origin),
+            'rotation_angle': self.rotate_angle,
         }
     def reset_last_position(self):
         if self.is_printer_ready:
@@ -148,6 +153,15 @@ class GCodeMove:
     def cmd_G21(self, gcmd):
         # Set units to millimeters
         pass
+    def cmd_G68(self, gcmd):
+        # Set coordinate rotation origin point and angle in degrees
+        for pos, axis in enumerate('XY'):
+            self.rotate_origin[pos] = gcmd.get_float(axis, 0.)
+        self.rotate_angle = gcmd.get_float('R', 0., above=-360., below=360.)
+        self.rotate_coord = True
+    def cmd_G69(self, gcmd):
+        # Cancel coordinate rotation
+        self.rotate_coord = False
     def cmd_M82(self, gcmd):
         # Use absolute distances for extrusion
         self.absolute_extrude = True
