@@ -295,6 +295,11 @@ provides the following standard G-Code commands:
 - Display Message: `M117 <message>`
 - Set build percentage: `M73 P<percent>`
 
+Also provided is the following extended G-Code command:
+- `SET_DISPLAY_TEXT MSG=<message>`: Performs the equivalent of M117,
+  setting the supplied `MSG` as the current display message.  If
+  `MSG` is omitted the display will be cleared.
+
 ### [dual_carriage]
 
 The following command is available when the
@@ -741,6 +746,20 @@ scheduled to run after the stepper move completes, however if a manual
 stepper move uses SYNC=0 then future G-Code movement commands may run
 in parallel with the stepper movement.
 
+### [mcp4018]
+
+The following command is available when a
+[mcp4018 config section](Config_Reference.md#mcp4018) is
+enabled.
+
+#### SET_DIGIPOT
+
+`SET_DIGIPOT DIGIPOT=config_name WIPER=<value>`: This command will
+change the current value of the digipot.  This value should typically
+be between 0.0 and 1.0, unless a 'scale' is defined in the config.
+When 'scale' is defined, then this value should be  between 0.0 and
+'scale'.
+
 ### [led]
 
 The following command is available when any of the
@@ -1005,6 +1024,8 @@ The following additional commands are also available.
   configured default prefix (or `echo: ` if no prefix is configured).
 - `RESPOND TYPE=echo MSG="<message>"`: echo the message prepended with
   `echo: `.
+- `RESPOND TYPE=echo_no_space MSG="<message>"`: echo the message prepended with
+  `echo:` without a space between prefix and message, helpful for compatibility with some octoprint plugins that expect very specific formatting.
 - `RESPOND TYPE=command MSG="<message>"`: echo the message prepended
   with `// `.  OctoPrint can be configured to respond to these messages
   (e.g.  `RESPOND TYPE=command MSG=action:pause`).
@@ -1259,6 +1280,24 @@ print.
 
 #### SDCARD_RESET_FILE
 `SDCARD_RESET_FILE`: Unload file and clear SD state.
+
+### [z_thermal_adjust]
+
+The following commands are available when the
+[z_thermal_adjust config section](Config_Reference.md#z_thermal_adjust)
+is enabled.
+
+#### SET_Z_THERMAL_ADJUST
+`SET_Z_THERMAL_ADJUST [ENABLE=<0:1>] [TEMP_COEFF=<value>] [REF_TEMP=<value>]`:
+Enable or disable the Z thermal adjustment with `ENABLE`. Disabling does not
+remove any adjustment already applied, but will freeze the current adjustment
+value - this prevents potentially unsafe downward Z movement. Re-enabling can
+potentially cause upward tool movement as the adjustment is updated and applied.
+`TEMP_COEFF` allows run-time tuning of the adjustment temperature coefficient
+(i.e. the `TEMP_COEFF` config parameter). `TEMP_COEFF` values are not saved to
+the config. `REF_TEMP` manually overrides the reference temperature typically
+set during homing (for use in e.g. non-standard homing routines) - will be reset
+automatically upon homing.
 
 ### [z_tilt]
 
