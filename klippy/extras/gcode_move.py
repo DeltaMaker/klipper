@@ -331,4 +331,3 @@ class GCodeRotateHelper:
 
 def load_config(config):
     return GCodeMove(config)
-
