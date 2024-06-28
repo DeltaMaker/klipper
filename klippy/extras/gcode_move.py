@@ -3,7 +3,7 @@
 # Copyright (C) 2016-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import logging
+import logging, math
 
 class GCodeMove:
     def __init__(self, config):
@@ -45,6 +45,7 @@ class GCodeMove:
         self.speed = 25.
         self.speed_factor = 1. / 60.
         self.extrude_factor = 1.
+        self.g68_helper = GCodeRotateHelper(config, self)
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
@@ -140,7 +141,8 @@ class GCodeMove:
         except ValueError as e:
             raise gcmd.error("Unable to parse move '%s'"
                              % (gcmd.get_commandline(),))
-        self.move_with_transform(self.last_position, self.speed)
+        self.move_with_transform(self.g68_helper.rotate(self.last_position), 
+                                 self.speed)
     # G-Code coordinate manipulation
     def cmd_G20(self, gcmd):
         # Set units to inches
@@ -205,7 +207,8 @@ class GCodeMove:
             speed = gcmd.get_float('MOVE_SPEED', self.speed, above=0.)
             for pos, delta in enumerate(move_delta):
                 self.last_position[pos] += delta
-            self.move_with_transform(self.last_position, speed)
+            self.move_with_transform(self.g68_helper.rotate(self.last_position),
+                                     speed)
     cmd_SAVE_GCODE_STATE_help = "Save G-Code coordinate state"
     def cmd_SAVE_GCODE_STATE(self, gcmd):
         state_name = gcmd.get('NAME', 'default')
@@ -217,6 +220,7 @@ class GCodeMove:
             'homing_position': list(self.homing_position),
             'speed': self.speed, 'speed_factor': self.speed_factor,
             'extrude_factor': self.extrude_factor,
+            'rotation': self.g68_helper.get_state(),
         }
     cmd_RESTORE_GCODE_STATE_help = "Restore a previously saved G-Code state"
     def cmd_RESTORE_GCODE_STATE(self, gcmd):
@@ -232,6 +236,7 @@ class GCodeMove:
         self.speed = state['speed']
         self.speed_factor = state['speed_factor']
         self.extrude_factor = state['extrude_factor']
+        self.g68_helper.set_state(state['rotation'])
         # Restore the relative E position
         e_diff = self.last_position[3] - state['last_position'][3]
         self.base_position[3] += e_diff
@@ -239,7 +244,8 @@ class GCodeMove:
         if gcmd.get_int('MOVE', 0):
             speed = gcmd.get_float('MOVE_SPEED', self.speed, above=0.)
             self.last_position[:3] = state['last_position'][:3]
-            self.move_with_transform(self.last_position, speed)
+            self.move_with_transform(self.g68_helper.rotate(self.last_position),
+                                     speed)
     cmd_GET_POSITION_help = (
         "Return information on the current location of the toolhead")
     def cmd_GET_POSITION(self, gcmd):
@@ -271,6 +277,57 @@ class GCodeMove:
                           "gcode homing: %s"
                           % (mcu_pos, stepper_pos, kin_pos, toolhead_pos,
                              gcode_pos, base_pos, homing_pos))
+
+# Helper class to implement coordinate rotation gcodes G68 and G69
+class GCodeRotateHelper:
+    def __init__(self, config, gcode_move):
+        self.printer = printer = config.get_printer()
+        self.gcode_move = gcode_move
+        # Register g-code commands
+        gcode = printer.lookup_object('gcode')
+        gcode.register_command('G68', self.cmd_G68)
+        gcode.register_command('G69', self.cmd_G69)
+        # coordinate rotation state
+        self.rotate_coord = False
+        self.rotate_origin = [0.0, 0.0]
+        self.angle = 0.
+        self.sin_angle = 0.
+        self.cos_angle = 1.
+        self.rot_position = [0.0, 0.0, 0.0, 0.0]
+    # G-Code coordinate rotation
+    def rotate(self, position):
+        if not self.rotate_coord:
+            return position
+        else:
+            cx = self.rotate_origin[0] + self.gcode_move.base_position[0]
+            cy = self.rotate_origin[1] + self.gcode_move.base_position[1]
+            self.rot_position[0] = self.cos_angle * (
+                     position[0] - cx) - self.sin_angle * (position[1] - cy) + cx
+            self.rot_position[1] = self.sin_angle * (
+                     position[0] - cx) + self.cos_angle * (position[1] - cy) + cy
+            self.rot_position[2:] = position[2:]
+            return self.rot_position
+    def cmd_G68(self, gcmd):
+        # Set coordinate rotation origin point and angle in degrees
+        for pos, axis in enumerate('XY'):
+            self.rotate_origin[pos] = gcmd.get_float(axis, 0.)
+        self.angle = gcmd.get_float('R', 0., above=-360., below=360.)
+        self.sin_angle = math.sin(math.radians(self.angle))
+        self.cos_angle = math.cos(math.radians(self.angle))
+        self.rotate_coord = True
+    def cmd_G69(self, gcmd):
+        # Cancel coordinate rotation
+        self.rotate_coord = False
+        self.angle = 0.
+        self.rotate_origin = [0.0, 0.0]
+    def set_state(self, state):
+        self.rotate_coord = state[0]
+        self.angle = state[1]
+        self.rotate_origin = state[2]
+        self.sin_angle = math.sin(math.radians(self.angle))
+        self.cos_angle = math.cos(math.radians(self.angle))
+    def get_state(self):
+        return list((self.rotate_coord, self.angle, self.rotate_origin))
 
 def load_config(config):
     return GCodeMove(config)
