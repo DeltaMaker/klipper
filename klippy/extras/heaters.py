@@ -15,6 +15,7 @@ MAX_HEAT_TIME = 3.0
 AMBIENT_TEMP = 25.
 PID_PARAM_BASE = 255.
 MAX_MAINTHREAD_TIME = 5.0
+QUELL_STALE_TIME = 7.0
 
 class Heater:
     def __init__(self, config, sensor):
@@ -74,7 +75,8 @@ class Heater:
             # No significant change in value - can suppress update
             return
         pwm_time = read_time + self.pwm_delay
-        self.next_pwm_time = pwm_time + 0.75 * MAX_HEAT_TIME
+        self.next_pwm_time = (pwm_time + MAX_HEAT_TIME
+                              - (3. * self.pwm_delay + 0.001))
         self.last_pwm_value = value
         self.mcu_pwm.set_pwm(pwm_time, value)
         #logging.debug("%s: pwm=%.3f@%.3f (from %.3f@%.3f [%.3f])",
@@ -110,9 +112,10 @@ class Heater:
         with self.lock:
             self.target_temp = degrees
     def get_temp(self, eventtime):
-        print_time = self.mcu_pwm.get_mcu().estimated_print_time(eventtime) - 5.
+        est_print_time = self.mcu_pwm.get_mcu().estimated_print_time(eventtime)
+        quell_time = est_print_time - QUELL_STALE_TIME
         with self.lock:
-            if self.last_temp_time < print_time:
+            if self.last_temp_time < quell_time:
                 return 0., self.target_temp
             return self.smoothed_temp, self.target_temp
     def check_busy(self, eventtime):

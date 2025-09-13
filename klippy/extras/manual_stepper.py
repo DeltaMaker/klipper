@@ -22,13 +22,13 @@ class ManualStepper:
         self.velocity = config.getfloat('velocity', 5., above=0.)
         self.accel = self.homing_accel = config.getfloat('accel', 0., minval=0.)
         self.next_cmd_time = 0.
+        self.commanded_pos = 0.
         self.pos_min = config.getfloat('position_min', None)
         self.pos_max = config.getfloat('position_max', None)
         # Setup iterative solver
-        ffi_main, ffi_lib = chelper.get_ffi()
-        self.trapq = ffi_main.gc(ffi_lib.trapq_alloc(), ffi_lib.trapq_free)
-        self.trapq_append = ffi_lib.trapq_append
-        self.trapq_finalize_moves = ffi_lib.trapq_finalize_moves
+        self.motion_queuing = self.printer.load_object(config, 'motion_queuing')
+        self.trapq = self.motion_queuing.allocate_trapq()
+        self.trapq_append = self.motion_queuing.lookup_trapq_append()
         self.rail.setup_itersolve('cartesian_stepper_alloc', b'x')
         self.rail.set_trapq(self.trapq)
         # Registered with toolhead as an axtra axis
@@ -49,21 +49,16 @@ class ManualStepper:
         else:
             self.next_cmd_time = print_time
     def do_enable(self, enable):
-        self.sync_print_time()
+        stepper_names = [s.get_name() for s in self.steppers]
         stepper_enable = self.printer.lookup_object('stepper_enable')
-        if enable:
-            for s in self.steppers:
-                se = stepper_enable.lookup_enable(s.get_name())
-                se.motor_enable(self.next_cmd_time)
-        else:
-            for s in self.steppers:
-                se = stepper_enable.lookup_enable(s.get_name())
-                se.motor_disable(self.next_cmd_time)
-        self.sync_print_time()
+        stepper_enable.set_motors_enable(stepper_names, enable)
     def do_set_position(self, setpos):
-        self.rail.set_position([setpos, 0., 0.])
+        toolhead = self.printer.lookup_object('toolhead')
+        toolhead.flush_step_generation()
+        self.commanded_pos = setpos
+        self.rail.set_position([self.commanded_pos, 0., 0.])
     def _submit_move(self, movetime, movepos, speed, accel):
-        cp = self.rail.get_commanded_position()
+        cp = self.commanded_pos
         dist = movepos - cp
         axis_r, accel_t, cruise_t, cruise_v = force_move.calc_move_time(
             dist, speed, accel)
@@ -71,16 +66,13 @@ class ManualStepper:
                           accel_t, cruise_t, accel_t,
                           cp, 0., 0., axis_r, 0., 0.,
                           0., cruise_v, accel)
+        self.commanded_pos = movepos
         return movetime + accel_t + cruise_t + accel_t
     def do_move(self, movepos, speed, accel, sync=True):
         self.sync_print_time()
         self.next_cmd_time = self._submit_move(self.next_cmd_time, movepos,
                                                speed, accel)
-        self.rail.generate_steps(self.next_cmd_time)
-        self.trapq_finalize_moves(self.trapq, self.next_cmd_time + 99999.9,
-                                  self.next_cmd_time + 99999.9)
-        toolhead = self.printer.lookup_object('toolhead')
-        toolhead.note_mcu_movequeue_activity(self.next_cmd_time)
+        self.motion_queuing.note_mcu_movequeue_activity(self.next_cmd_time)
         if sync:
             self.sync_print_time()
     def do_homing_move(self, movepos, speed, accel, triggered, check_trigger):
@@ -138,7 +130,6 @@ class ManualStepper:
                 raise gcmd.error("Must unregister axis first")
             # Unregister
             toolhead.remove_extra_axis(self)
-            toolhead.unregister_step_generator(self.rail.generate_steps)
             self.axis_gcode_id = None
             return
         if (len(gcode_axis) != 1 or not gcode_axis.isupper()
@@ -154,8 +145,7 @@ class ManualStepper:
         self.instant_corner_v = instant_corner_v
         self.gaxis_limit_velocity = limit_velocity
         self.gaxis_limit_accel = limit_accel
-        toolhead.add_extra_axis(self, self.get_position()[0])
-        toolhead.register_step_generator(self.rail.generate_steps)
+        toolhead.add_extra_axis(self, self.commanded_pos)
     def process_move(self, print_time, move, ea_index):
         axis_r = move.axes_r[ea_index]
         start_pos = move.start_pos[ea_index]
@@ -167,6 +157,7 @@ class ManualStepper:
                           start_pos, 0., 0.,
                           1., 0., 0.,
                           start_v, cruise_v, accel)
+        self.commanded_pos = move.end_pos[ea_index]
     def check_move(self, move, ea_index):
         # Check move is in bounds
         movepos = move.end_pos[ea_index]
@@ -191,9 +182,10 @@ class ManualStepper:
         return self.trapq
     # Toolhead wrappers to support homing
     def flush_step_generation(self):
-        self.sync_print_time()
+        toolhead = self.printer.lookup_object('toolhead')
+        toolhead.flush_step_generation()
     def get_position(self):
-        return [self.rail.get_commanded_position(), 0., 0., 0.]
+        return [self.commanded_pos, 0., 0., 0.]
     def set_position(self, newpos, homing_axes=""):
         self.do_set_position(newpos[0])
     def get_last_move_time(self):
@@ -204,15 +196,16 @@ class ManualStepper:
     def drip_move(self, newpos, speed, drip_completion):
         # Submit move to trapq
         self.sync_print_time()
-        maxtime = self._submit_move(self.next_cmd_time, newpos[0],
-                                    speed, self.homing_accel)
+        start_time = self.next_cmd_time
+        end_time = self._submit_move(start_time, newpos[0],
+                                     speed, self.homing_accel)
         # Drip updates to motors
-        toolhead = self.printer.lookup_object('toolhead')
-        toolhead.drip_update_time(maxtime, drip_completion, self.steppers)
+        self.motion_queuing.drip_update_time(start_time, end_time,
+                                             drip_completion)
         # Clear trapq of any remaining parts of movement
         reactor = self.printer.get_reactor()
-        self.trapq_finalize_moves(self.trapq, reactor.NEVER, 0)
-        self.rail.set_position([newpos[0], 0., 0.])
+        self.motion_queuing.wipe_trapq(self.trapq)
+        self.rail.set_position([self.commanded_pos, 0., 0.])
         self.sync_print_time()
     def get_kinematics(self):
         return self

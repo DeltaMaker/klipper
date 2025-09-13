@@ -148,8 +148,7 @@ class ResonanceTestExecutor:
         last_v = last_t = last_accel = last_freq = 0.
         for next_t, accel, freq in test_seq:
             t_seg = next_t - last_t
-            toolhead.cmd_M204(self.gcode.create_gcode_command(
-                "M204", "M204", {"S": abs(accel)}))
+            toolhead.set_max_velocities(None, abs(accel), None, None)
             v = last_v + accel * t_seg
             abs_v = abs(v)
             if abs_v < 0.000001:
@@ -182,8 +181,7 @@ class ResonanceTestExecutor:
         if last_v:
             d_decel = -.5 * last_v2 / old_max_accel
             decel_X, decel_Y = axis.get_point(d_decel)
-            toolhead.cmd_M204(self.gcode.create_gcode_command(
-                "M204", "M204", {"S": old_max_accel}))
+            toolhead.set_max_velocities(None, old_max_accel, None, None)
             toolhead.move([X + decel_X, Y + decel_Y] + tpos[2:], abs(last_v))
         # Restore the original acceleration values
         self.gcode.run_script_from_command(
@@ -295,7 +293,7 @@ class ResonanceTester:
         return parsed_chips
     def _get_max_calibration_freq(self):
         return 1.5 * self.generator.get_max_freq()
-    cmd_TEST_RESONANCES_help = ("Runs the resonance test for a specifed axis")
+    cmd_TEST_RESONANCES_help = ("Runs the resonance test for a specified axis")
     def cmd_TEST_RESONANCES(self, gcmd):
         # Parse parameters
         axis = _parse_axis(gcmd, gcmd.get("AXIS").lower())
@@ -345,7 +343,7 @@ class ResonanceTester:
             gcmd.respond_info(
                     "Resonances data written to %s file" % (csv_name,))
     cmd_SHAPER_CALIBRATE_help = (
-        "Simular to TEST_RESONANCES but suggest input shaper config")
+        "Similar to TEST_RESONANCES but suggest input shaper config")
     def cmd_SHAPER_CALIBRATE(self, gcmd):
         # Parse parameters
         axis = gcmd.get("AXIS", None)
